@@ -1,0 +1,49 @@
+COMPILER MiniLang
+
+CHARACTERS
+  tab           = '\u0009'. /*  9 = tabulator */
+  lf            = '\u000a'. /* 10 = line feed */
+  cr            = '\u000d'. /* 13 = carriage return */
+
+  zero          = '0'.
+  nonZeroDigit  = "123456789".
+  digit         = '0' + nonZeroDigit .
+  letter        = 'A' .. 'Z' + 'a' .. 'z' + '_' + '$'.
+
+  char          = ANY - "'" - '\\' - cr - lf.
+
+TOKENS
+  ident         = letter { letter | digit }.
+  number = (  zero | nonZeroDigit { digit } ).
+
+COMMENTS FROM "/*" TO "*/"
+COMMENTS FROM "//" TO lf
+
+IGNORE lf + cr + tab
+
+/*---------------------------------------------------------------------------*/
+
+PRODUCTIONS
+
+MiniLang = {VarDecl} MainDecl.
+VarDecl = "var" ident ":" Type ";".
+Type = ident {"[" number "]"}.
+MainDecl = "fn" "main" "(" ")" "{" {VarDecl} StatSeq "}".
+StatSeq = Statement {Statement}.
+Statement =
+      Designator "=" Expression ";"
+    | "if" "(" Condition ")" "{" StatSeq "}" {"elseif" "(" Condition ")" "{" StatSeq "}" } ["else" "{" StatSeq "}"]
+    | "while" "(" Condition ")" "{" StatSeq "}"
+    | "read" Designator ";"
+    | "write" Expression ";"
+.
+Condition = Expression Relop Expression.
+Expression = [Addop] Term {Addop Term}.
+Term = Factor {Mulop Factor}.
+Factor = Designator | number | "(" Expression ")".
+Designator = ident { "[" Expression "]" }.
+Relop = "==" | "!=" | "<" | ">" | ">=" | "<=".
+Addop = "+" | "-".
+Mulop = "*" | "/" | "%".
+
+END MiniLang.
