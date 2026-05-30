@@ -13,6 +13,7 @@ fn main() {
     sum = 0;
     while (i < 10) {
         sum = sum + (a[i] - a [i - 1]);
+        write sum;
         i = i + 1;
     }
     write sum;
