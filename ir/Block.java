@@ -1,5 +1,6 @@
 package ir;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public record Block(int id, BlockKind kind, Block left, Block right, List<Block> pred, List<Instruction> instructions) {
@@ -15,8 +16,20 @@ public record Block(int id, BlockKind kind, Block left, Block right, List<Block>
         return instruction;
 
     }
+
     static int idGenerator = 0;
+
     public Block(BlockKind kind) {
-        this(idGenerator++, kind, null,null, List.of(), List.of());
+        this(idGenerator++, kind, null, null, new LinkedList<>(), new LinkedList<>());
+    }
+
+
+    @Override
+    public String toString() {
+        var string = new StringBuilder();
+        for (Instruction instruction : this.instructions) {
+            string.append(String.format("%d. ", instruction.getId())).append(instruction.toString()).append("\n");
+        }
+        return string.toString();
     }
 }

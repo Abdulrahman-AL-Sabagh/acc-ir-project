@@ -10,4 +10,9 @@ public class Constant extends Node {
     public int getVal() {
         return val;
     }
+
+    @Override
+    public String toString() {
+        return String.format("%d", val);
+    }
 }

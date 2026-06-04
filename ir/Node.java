@@ -1,21 +1,19 @@
 package ir;
 
-import java.util.UUID;
-
 public class Node {
-    private int n;
+    private int id;
     private static int counter = 1;
 
     public Node() {
-        this.n = counter++;
+        this.id = counter++;
     }
 
-    public int getN() {
-        return n;
+    public int getId() {
+        return id;
     }
 
-    public void setN(int n) {
-        this.n = n;
+    public void setId(int id) {
+        this.id = id;
     }
 
 }

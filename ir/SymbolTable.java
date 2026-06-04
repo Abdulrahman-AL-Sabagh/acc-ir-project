@@ -92,11 +92,11 @@ public class SymbolTable {
 
     Obj find(String name) {
         Scope curr = this.currScope;
-        while (curr.outer != null) {
+        while (curr != null) {
             if (curr.locals.containsKey(name)) {
                 return currScope.locals.get(name);
             }
-            curr = currScope.outer;
+            curr = curr.outer;
         }
         return null;
     }

@@ -141,9 +141,11 @@ public class Parser {
 
     void Statement() {
         if (la.kind == 1) {
-            Designator(false);
+            Node x, y;
+            x = Designator(false);
             Expect(14);
-            Expression();
+            y = Expression();
+            curBlock.addInstruction(x, Code.OpCode.ass, y);
             Expect(5);
         } else if (la.kind == 15) {
             Get();
