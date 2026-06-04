@@ -9,7 +9,7 @@ import java.util.Optional;
 public class SymbolTable {
 
 
-    private Struct intType = new Struct(Struct.Kind.Int, 32, 0, null);
+    public static Struct intType = new Struct(Struct.Kind.Int, 32, 0, null);
     Scope currScope = null;
     int curLevel = -2;
 
@@ -72,14 +72,14 @@ public class SymbolTable {
      * @return
      */
     void insert(String name, Obj.Kind kind) {
-        if (find(name).isPresent()) {
+        if (find(name) != null) {
             throw new IllegalArgumentException("The variable " + name + "  is already defined");
         }
         Obj obj = null;
         switch (kind) {
-            case Type -> obj = new Obj(name);
-            case Var -> obj = new Obj(name, kind, intType, 0, 0, curLevel, 0, 0, null);
-            case Meth -> obj = new Obj(name, kind, new Struct(Struct.Kind.None), 0, 0, curLevel, 0, 0, new HashMap<>());
+            case Type -> obj = new Obj(name, Obj.Kind.Type);
+            case Var -> obj = new Obj(name, kind);
+            //  case Meth -> obj = new Obj(name, kind, new Struct(Struct.Kind.None), 0, 0, curLevel, 0, 0, new HashMap<>());
             default -> {
             }
         }
@@ -90,15 +90,15 @@ public class SymbolTable {
 
     }
 
-    Optional<Obj> find(String name) {
+    Obj find(String name) {
         Scope curr = this.currScope;
         while (curr.outer != null) {
             if (curr.locals.containsKey(name)) {
-                return Optional.of(currScope.locals.get(name));
+                return currScope.locals.get(name);
             }
             curr = currScope.outer;
         }
-        return Optional.empty();
+        return null;
     }
 
     void openScope() {

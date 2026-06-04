@@ -6,4 +6,8 @@ public record Struct(Kind kind, int size, int n, Struct elemType) {
         None, Int, Arr
     }
 
+    Struct(Kind kind) {
+        this(kind, 0, 0, null);
+    }
+
 }

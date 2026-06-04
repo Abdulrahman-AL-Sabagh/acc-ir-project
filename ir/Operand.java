@@ -19,4 +19,8 @@ public record Operand(
         int inx,
         int scale
 ) {
+
+    enum Kind {
+        METH, LOCAL, STATIC, ELEM,CON, STACK
+    }
 }
