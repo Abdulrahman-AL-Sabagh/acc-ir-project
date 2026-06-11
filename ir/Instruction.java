@@ -3,12 +3,14 @@ package ir;
 public class Instruction extends Node {
     private final Node x;
     private final Code.OpCode opCode;
-    private final Node y;
+    private Node y;
+    private final Block block;
 
-    public Instruction(Node x, Code.OpCode opCode, Node y) {
+    public Instruction(Node x, Code.OpCode opCode, Node y, Block block) {
         this.x = x;
         this.opCode = opCode;
         this.y = y;
+        this.block = block;
 
     }
 
@@ -28,6 +30,14 @@ public class Instruction extends Node {
         if (n instanceof Instruction) {
             return String.format("(%d)", n.getId());
         } else return n.toString();
+    }
+
+    public void setY(Node y) {
+        this.y = y;
+    }
+
+    public Block getBlock() {
+        return block;
     }
 
     @Override

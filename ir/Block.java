@@ -53,8 +53,15 @@ public class Block {
         return Optional.empty();
     }
 
+
+    void fixup(Instruction i) {
+        i.setY(this.getInstructions().getFirst());
+        i.getBlock().setRight(this);
+        this.pred.add(i.getBlock());
+    }
+
     Instruction addInstruction(Node x, Code.OpCode opCode, Node y) {
-        var instruction = new Instruction(x, opCode, y);
+        var instruction = new Instruction(x, opCode, y, this);
         this.instructions.add(instruction);
         return instruction;
 
