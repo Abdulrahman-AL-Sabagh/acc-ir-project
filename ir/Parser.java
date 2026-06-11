@@ -153,6 +153,7 @@ public class Parser {
             Condition();
             Expect(11);
             Expect(12);
+            curBlock = curBlock.split(Block.BlockKind.CONDITION).orElse(curBlock);
             StatSeq();
             Expect(13);
             while (la.kind == 16) {

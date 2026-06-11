@@ -8,7 +8,9 @@ public class Block {
     enum BlockKind {
         LOOP,
         CONDITION,
-        NORMAL
+        NORMAL;
+
+
     }
 
     private int id;
@@ -112,5 +114,17 @@ public class Block {
 
     public static void setIdGenerator(int idGenerator) {
         Block.idGenerator = idGenerator;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public BlockKind getKind() {
+        return kind;
     }
 }
