@@ -16,20 +16,20 @@ class ParserTest {
         var parser = new Parser(
                 new Scanner(new ByteArrayInputStream(
                         """
-                        fn main() {
-                        var a: int;
-                        var b: int;
-                        var c: int;
-                        c = 2;
-                        b = 1;
-                        a = 3 + b * c;
-                        
-                        }
+                                fn main() {
+                                var a: int;
+                                var b: int;
+                                var c: int;
+                                c = 2;
+                                b = 1;
+                                a = 3 + b * c;
+                                
+                                }
                                 """.getBytes())
                 ));
         parser.Parse();
         System.out.println(parser.cfg);
-        Assertions.assertFalse(parser.cfg.instructions().isEmpty());
-        Assertions.assertEquals(5, parser.cfg.instructions().size());
+        Assertions.assertFalse(parser.cfg.getInstructions().isEmpty());
+        Assertions.assertEquals(5, parser.cfg.getInstructions().size());
     }
 }
