@@ -140,6 +140,9 @@ public class Parser {
     }
 
     void Statement() {
+        Label l = new Label(null, null, null);
+        Block join = new Block(Block.BlockKind.NORMAL);
+        join.addInstruction(null, Code.OpCode.nop,null);
         if (la.kind == 1) {
             Node x, y;
             x = Designator(false);
@@ -150,16 +153,16 @@ public class Parser {
         } else if (la.kind == 15) {
             Get();
             Expect(10);
-            Condition();
+            Condition(l);
             Expect(11);
             Expect(12);
-            curBlock = curBlock.split(Block.BlockKind.CONDITION).orElse(curBlock);
             StatSeq();
             Expect(13);
+            // TODO: Handle else and elseif splits and fix
             while (la.kind == 16) {
                 Get();
                 Expect(10);
-                Condition();
+                Condition(l);
                 Expect(11);
                 Expect(12);
                 StatSeq();
@@ -170,11 +173,18 @@ public class Parser {
                 Expect(12);
                 StatSeq();
                 Expect(13);
+            } else {
+                //curBlock.addInstruction(null, l.getOp(), l.getCond());
+                curBlock.setLeft(join);
+                curBlock = join;
+                Block.fixup(l.getFix(), curBlock);
             }
+
+
         } else if (la.kind == 18) {
             Get();
             Expect(10);
-            Condition();
+            Condition(l);
             Expect(11);
             Expect(12);
             StatSeq();
@@ -222,42 +232,59 @@ public class Parser {
         return x;
     }
 
-    void Condition() {
-        Expression();
-        Relop();
-        Expression();
+    void Condition(Label label) {
+        var lhs = Expression();
+        var op = Relop();
+        var rhs = Expression();
+        label.setOp(op);
+        var compareInstruction = this.curBlock.addInstruction(lhs, op, rhs);
+        label.setCond(compareInstruction);
+
+        var fjump = Code.OpCode.fjump(op);
+        var fixInstr = this.curBlock.addInstruction(label.getCond(), fjump, null);
+        label.setFix(fixInstr);
+        curBlock = curBlock.split(Block.BlockKind.CONDITION).orElse(curBlock);
+
     }
 
-    void Relop() {
+    Code.OpCode Relop() {
+        var op = Code.OpCode.beq;
         switch (la.kind) {
             case 21: {
                 Get();
+                op = Code.OpCode.beq;
                 break;
             }
             case 22: {
                 Get();
+                op = Code.OpCode.bne;
                 break;
             }
             case 23: {
                 Get();
+                op = Code.OpCode.blt;
                 break;
             }
             case 24: {
                 Get();
+                op = Code.OpCode.bgt;
                 break;
             }
             case 25: {
                 Get();
+                op = Code.OpCode.bge;
                 break;
             }
             case 26: {
                 Get();
+                op = Code.OpCode.ble;
                 break;
             }
             default:
                 SynErr(34);
                 break;
         }
+        return op;
     }
 
     Code.OpCode Addop() {

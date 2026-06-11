@@ -38,7 +38,7 @@ class ParserTest {
     }
 
     @Test
-    void ensureThatIfStatementCanGenerateASplit() {
+    void ensureThatIfStatementCanGenerateASplitAndFixup() {
         var parser = constructParserForTestCase("""
                     fn main() {
                         var a: int;
@@ -48,13 +48,17 @@ class ParserTest {
                 
                         if (a > b) {
                           a = a - b;
-                        } else {
-                          write a;
                         }
+                        a = a + 1;
                     }
                 """);
         parser.Parse();
+        System.out.println(parser.cfg.toGraphViz());
         Assertions.assertNotNull(parser.cfg.getLeft());
-        Assertions.assertTrue(parser.cfg.getLeft().getKind().equals(Block.BlockKind.CONDITION));
+        Assertions.assertEquals(parser.cfg.getLeft().getKind(), Block.BlockKind.CONDITION);
+        Assertions.assertFalse(parser.cfg.getLeft().getInstructions().isEmpty());
+        Assertions.assertNotNull(parser.cfg.getRight());
+        Assertions.assertTrue(parser.cfg.getRight().getKind() == Block.BlockKind.NORMAL);
+        Assertions.assertFalse(parser.cfg.getRight().getInstructions().isEmpty());
     }
 }

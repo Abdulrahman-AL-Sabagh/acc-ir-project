@@ -1,8 +1,8 @@
 package ir;
 
 public class Instruction extends Node {
-    private final Node x;
-    private final Code.OpCode opCode;
+    private  Node x;
+    private  Code.OpCode opCode;
     private Node y;
     private final Block block;
 
@@ -27,6 +27,9 @@ public class Instruction extends Node {
     }
 
     private String stringifyNode(Node n) {
+        if (n == null) {
+            return "_";
+        }
         if (n instanceof Instruction) {
             return String.format("(%d)", n.getId());
         } else return n.toString();
@@ -43,5 +46,13 @@ public class Instruction extends Node {
     @Override
     public String toString() {
         return String.format("%s %s %s", stringifyNode(x), opCode.name(), stringifyNode(y));
+    }
+
+    public void setX(Node x) {
+        this.x = x;
+    }
+
+    public void setOpCode(Code.OpCode opCode) {
+        this.opCode = opCode;
     }
 }

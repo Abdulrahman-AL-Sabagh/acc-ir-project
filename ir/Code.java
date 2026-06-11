@@ -28,16 +28,36 @@ public class Code {
         bgt,
         bge,
         bne,
-        ble
+        nop,
+        ble;
+
+        public static Code.OpCode fjump(Code.OpCode op) {
+            var val = bne;
+            switch (op) {
+                case beq -> val = bne;
+                case bne -> val = beq;
+                case bge -> val = blt;
+                case ble -> val = bgt;
+                case bgt -> val = ble;
+                case blt -> val = bge;
+
+                default -> {
+                    throw new IllegalArgumentException("Can not get the false jump of a non-jump command");
+                }
+            }
+            return val;
+        }
 
     }
 
     public final static List<OpCode> jumpCommands =
             List.of(
                     OpCode.bgt,
+                    OpCode.bge,
                     OpCode.bne,
-                    OpCode.ble,
-                    OpCode.beq
+                    OpCode.beq,
+                    OpCode.blt,
+                    OpCode.ble
 
             );
 

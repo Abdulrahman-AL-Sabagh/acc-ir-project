@@ -5,6 +5,10 @@ import java.util.List;
 import java.util.Optional;
 
 public class Block {
+
+    // related to  the Graphviz project that is used with the testcases
+    private static final boolean ENABLE_GRAPH_VIZ_GENERATION = true;
+
     enum BlockKind {
         LOOP,
         CONDITION,
@@ -43,7 +47,7 @@ public class Block {
      */
     Optional<Block> split(BlockKind kind) {
         if (this.instructions.getFirst() != this.instructions.getLast()
-                && !Code.jumpCommands.contains(this.instructions.getLast().getOpCode())
+            //&& !Code.jumpCommands.contains(this.instructions.getLast().getOpCode())
         ) {
             Block b = new Block(kind);
             this.setLeft(b);
@@ -54,18 +58,20 @@ public class Block {
     }
 
 
-    void fixup(Instruction i) {
-        i.setY(this.getInstructions().getFirst());
-        i.getBlock().setRight(this);
-        this.pred.add(i.getBlock());
+    static void fixup(Instruction i, Block currBlock) {
+        i.setY(currBlock.getInstructions().getFirst());
+        i.getBlock().setRight(currBlock);
+        currBlock.pred.add(i.getBlock());
     }
 
     Instruction addInstruction(Node x, Code.OpCode opCode, Node y) {
+
         var instruction = new Instruction(x, opCode, y, this);
         this.instructions.add(instruction);
         return instruction;
 
     }
+
 
     static int idGenerator = 0;
 
@@ -133,5 +139,46 @@ public class Block {
 
     public BlockKind getKind() {
         return kind;
+    }
+
+    // Code constructed in a similar structure to this here
+    // https://graphviz.org/Gallery/directed/psg.html
+    public void serializeBlock(Block block, StringBuilder sb) {
+
+        sb.append(generateBlockName(block)).append(" ");
+        sb.append("[ label=<").append("\n").append("<table> \n");
+        for (Instruction instruction : block.getInstructions()) {
+            sb.append("<tr><td>").append(instruction.toString()).append("</td></tr>").append("\n");
+        }
+        sb.append("</table> \n").append(" >]").append("\n");
+        sb.append("\n");
+    }
+
+    private String generateBlockName(Block block) {
+        return String.format("%s_%d ", block.kind, block.id);
+    }
+
+    private void dfsBlock(Block block, StringBuilder sb) {
+        serializeBlock(block, sb);
+
+        if (block.getLeft() != null) {
+            dfsBlock(block.getLeft(), sb);
+            sb.append(generateBlockName(block)).append("->").append(generateBlockName(block.getLeft())).append("\n");
+        }
+        if (block.getRight() != null) {
+            dfsBlock(block.getRight(), sb);
+            sb.append(generateBlockName(block)).append("->").append(generateBlockName(block.getRight())).append("\n");
+        }
+    }
+
+    public String toGraphViz() {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("digraph G {\n");
+        sb.append("node [shape=box];\n");
+        dfsBlock(this, sb);
+
+        sb.append("}");
+        return sb.toString();
     }
 }
