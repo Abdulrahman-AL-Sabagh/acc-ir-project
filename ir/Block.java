@@ -10,8 +10,14 @@ public class Block {
     private static final boolean ENABLE_GRAPH_VIZ_GENERATION = true;
 
     enum BlockKind {
-        LOOP,
-        CONDITION,
+        WHILE,
+        WHILE_BODY,
+        IF,
+        IF_BODY,
+        ELSE_IF,
+        ELSE_IF_BODY,
+        ELSE,
+        ELSE_BODY,
         NORMAL;
 
 
@@ -32,6 +38,7 @@ public class Block {
         this.right = right;
         this.pred = pred;
         this.instructions = instructions;
+        instructions.add(new Instruction(null, Code.OpCode.nop, null, this));
     }
 
 
@@ -57,22 +64,6 @@ public class Block {
         return Optional.empty();
     }
 
-
-    static void fixup(Instruction i, Block currBlock) {
-        i.setY(currBlock.getInstructions().getFirst());
-        i.getBlock().setRight(currBlock);
-        currBlock.pred.add(i.getBlock());
-    }
-
-    Instruction addInstruction(Node x, Code.OpCode opCode, Node y) {
-
-        var instruction = new Instruction(x, opCode, y, this);
-        this.instructions.add(instruction);
-        return instruction;
-
-    }
-
-
     static int idGenerator = 0;
 
     public Block(BlockKind kind) {
@@ -95,6 +86,7 @@ public class Block {
 
     public void setLeft(Block left) {
         this.left = left;
+        left.getPred().add(this);
     }
 
     public Block getRight() {
@@ -103,6 +95,7 @@ public class Block {
 
     public void setRight(Block right) {
         this.right = right;
+        right.getPred().add(this);
     }
 
     public List<Block> getPred() {

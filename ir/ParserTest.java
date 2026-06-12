@@ -34,7 +34,7 @@ class ParserTest {
         parser.Parse();
         System.out.println(parser.cfg);
         Assertions.assertFalse(parser.cfg.getInstructions().isEmpty());
-        Assertions.assertEquals(5, parser.cfg.getInstructions().size());
+        Assertions.assertEquals(6, parser.cfg.getInstructions().size());
     }
 
     @Test
@@ -55,10 +55,39 @@ class ParserTest {
         parser.Parse();
         System.out.println(parser.cfg.toGraphViz());
         Assertions.assertNotNull(parser.cfg.getLeft());
-        Assertions.assertEquals(parser.cfg.getLeft().getKind(), Block.BlockKind.CONDITION);
+        Assertions.assertEquals(parser.cfg.getLeft().getKind(), Block.BlockKind.IF);
         Assertions.assertFalse(parser.cfg.getLeft().getInstructions().isEmpty());
         Assertions.assertNotNull(parser.cfg.getRight());
         Assertions.assertTrue(parser.cfg.getRight().getKind() == Block.BlockKind.NORMAL);
         Assertions.assertFalse(parser.cfg.getRight().getInstructions().isEmpty());
+        Assertions.assertTrue(parser.cfg.getLeft().getRight() == parser.cfg.getRight());
+    }
+
+    @Test
+    void testTheResultOfCFGWithIfElse_FromSlide33_ChapterIntermediateRepresentation() {
+
+        var parser = constructParserForTestCase("""
+                  fn main() {
+                                      var x: int;
+                                      var y: int;
+                                      if (x > 0) { y = 1; }
+                                      elseif (x < 0) { y = -1; }
+                                      else { y = 0; }
+                  }
+                """);
+        parser.Parse();
+        var cfg = parser.cfg;
+        System.out.println(cfg.toGraphViz());
+        Assertions.assertTrue(cfg.getKind() == Block.BlockKind.NORMAL);
+        Assertions.assertFalse(cfg.getInstructions().isEmpty());
+
+        Assertions.assertNotNull(cfg.getLeft());
+        Assertions.assertNotNull(cfg.getRight());
+
+        Assertions.assertNotNull(cfg.getLeft().getRight());
+        Assertions.assertNotNull(cfg.getRight().getLeft());
+        Assertions.assertNotNull(cfg.getRight().getRight());
+
+
     }
 }

@@ -1,6 +1,11 @@
 
 package ir;
 
+import ir.Block.BlockKind;
+
+import static ir.Block.BlockKind.IF;
+import static ir.Block.BlockKind.NORMAL;
+
 public class Parser {
     public static final int _EOF = 0;
     public static final int _ident = 1;
@@ -22,6 +27,21 @@ public class Parser {
     public Block cfg;
     public Block curBlock;
 
+
+    private Instruction gen(Node x, Code.OpCode op, Node y) {
+
+
+        var instr = new Instruction(x, op, y, curBlock);
+        curBlock.getInstructions().add(instr);
+        return instr;
+    }
+
+    private void fixup(Instruction i) {
+
+        i.setY(curBlock.getInstructions().getFirst());
+        i.getBlock().setRight(curBlock);
+        curBlock.getPred().add(i.getBlock());
+    }
 
     public Parser(Scanner scanner) {
         this.scanner = scanner;
@@ -109,17 +129,17 @@ public class Parser {
     void MainDecl() {
         Expect(8);
         Expect(9);
-        Expect(10);
-        Expect(11);
-        Expect(12);
+        Expect(10); // "("
+        Expect(11); // ")"
+        Expect(12); // "{"
         symbolTable.openScope();
-        cfg = new Block(Block.BlockKind.NORMAL);
+        cfg = new Block(NORMAL);
         curBlock = cfg;
         while (la.kind == 3) {
             VarDecl();
         }
         StatSeq();
-        Expect(13);
+        Expect(13); // "}"
         symbolTable.closeScope();
     }
 
@@ -141,54 +161,74 @@ public class Parser {
 
     void Statement() {
         Label l = new Label(null, null, null);
-        Block join = new Block(Block.BlockKind.NORMAL);
-        join.addInstruction(null, Code.OpCode.nop,null);
+        Block join = null;
         if (la.kind == 1) {
             Node x, y;
             x = Designator(false);
             Expect(14);
             y = Expression();
-            curBlock.addInstruction(x, Code.OpCode.ass, y);
+            gen(x, Code.OpCode.ass, y);
             Expect(5);
-        } else if (la.kind == 15) {
+        } else if (la.kind == 15) { // "if"
             Get();
-            Expect(10);
+            Expect(10); // "("
             Condition(l);
-            Expect(11);
-            Expect(12);
+            l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
+            curBlock = curBlock.split(IF).orElse(curBlock);
+            join = new Block(NORMAL);
+            Expect(11); // ")"
+            Expect(12); // "{"
             StatSeq();
-            Expect(13);
-            // TODO: Handle else and elseif splits and fix
-            while (la.kind == 16) {
-                Get();
-                Expect(10);
-                Condition(l);
-                Expect(11);
-                Expect(12);
-                StatSeq();
-                Expect(13);
-            }
-            if (la.kind == 17) {
-                Get();
-                Expect(12);
-                StatSeq();
-                Expect(13);
-            } else {
-                //curBlock.addInstruction(null, l.getOp(), l.getCond());
-                curBlock.setLeft(join);
+            Expect(13); // "}"
+            if (la.kind != 16 && la.kind != 17) {
+                gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
+                curBlock.setRight(join);
+                fixup(l.getFix());
+                l.getFix().getBlock().setRight(join);
                 curBlock = join;
-                Block.fixup(l.getFix(), curBlock);
+                return;
             }
+            // TODO: Handle else and elseif splits and fix
+            while (la.kind == 16) { // "elseif"
+                Get();
+                Expect(10); // "("
+                // TOOD: Decide later how to get rid of this jmp command so it matches the expected output in the slides
+                // curBlock.addInstruction(null, Code.OpCode.jmp, join.getInstructions().getFirst());
+                gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
+                curBlock.setRight(join);
+                curBlock = new Block(NORMAL);
+                fixup(l.getFix());
+                Condition(l);
+                l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
+                curBlock = curBlock.split(Block.BlockKind.ELSE_IF).orElse(curBlock);
+                Expect(11); // ")"
+                Expect(12); // "{"
+                StatSeq();
+                Expect(13); // "}"
+            }
+            gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
+            curBlock.setRight(join);
+            curBlock = new Block(NORMAL);
+            fixup(l.getFix());
+            if (la.kind == 17) { // "else"
+                Get();
+                Expect(12); // "{"
+                StatSeq();
+                Expect(13); // "}"
+            }
+            curBlock.setLeft(join);
+            join.getPred().add(curBlock);
+            curBlock = join;
 
 
-        } else if (la.kind == 18) {
+        } else if (la.kind == 18) { // "while"
             Get();
-            Expect(10);
+            Expect(10); // "("
             Condition(l);
-            Expect(11);
-            Expect(12);
+            Expect(11); // ")"
+            Expect(12); // "{"
             StatSeq();
-            Expect(13);
+            Expect(13); // "}"
         } else if (la.kind == 19) {
             Get();
             Designator(false);
@@ -222,29 +262,27 @@ public class Parser {
         x = Term();
         if (op == Code.OpCode.minus) {
             op = Code.OpCode.neg;
-            x = curBlock.addInstruction(x, op, null);
+            x = gen(x, op, null);
         }
         while (la.kind == 27 || la.kind == 28) {
             op = Addop();
             y = Term();
-            x = curBlock.addInstruction(x, op, y);
+            x = gen(x, op, y);
         }
         return x;
     }
 
+    /**
+     *
+     * @param label
+     */
     void Condition(Label label) {
         var lhs = Expression();
         var op = Relop();
         var rhs = Expression();
         label.setOp(op);
-        var compareInstruction = this.curBlock.addInstruction(lhs, op, rhs);
+        var compareInstruction = gen(lhs, op, rhs);
         label.setCond(compareInstruction);
-
-        var fjump = Code.OpCode.fjump(op);
-        var fixInstr = this.curBlock.addInstruction(label.getCond(), fjump, null);
-        label.setFix(fixInstr);
-        curBlock = curBlock.split(Block.BlockKind.CONDITION).orElse(curBlock);
-
     }
 
     Code.OpCode Relop() {
@@ -303,7 +341,7 @@ public class Parser {
         while (la.kind == 29 || la.kind == 30 || la.kind == 31) {
             var op = Mulop();
             var y = Factor();
-            x = curBlock.addInstruction(x, op, y);
+            x = gen(x, op, y);
         }
         return x;
     }
@@ -318,7 +356,7 @@ public class Parser {
         } else if (la.kind == 10) {
             Get();
             x = Expression();
-            Expect(11);
+            Expect(11); // ")"
         } else SynErr(36);
         return x;
     }

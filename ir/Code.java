@@ -29,7 +29,9 @@ public class Code {
         bge,
         bne,
         nop,
+        jmp,
         ble;
+
 
         public static Code.OpCode fjump(Code.OpCode op) {
             var val = bne;
