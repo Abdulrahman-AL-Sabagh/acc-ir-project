@@ -87,7 +87,26 @@ class ParserTest {
         Assertions.assertNotNull(cfg.getLeft().getRight());
         Assertions.assertNotNull(cfg.getRight().getLeft());
         Assertions.assertNotNull(cfg.getRight().getRight());
+    }
 
+    @Test
+    void ensure_that_spilt_and_fix_works_correctly_with_while_loop_given_the_example_from_the_slides() {
+        var parser = constructParserForTestCase("""
+                                      fn main() {
+                                        var a: int;
+                                        a = 10;
+                                        while (a > 0) { a = a - 1 ; }
+                                      }
+                """);
+        parser.Parse();
 
+        var cfg = parser.cfg;
+        System.out.println(cfg.toGraphViz());
+        Assertions.assertTrue(cfg.getInstructions().size() > 1);
+        Assertions.assertNotNull(cfg.getLeft());
+        Assertions.assertNotNull(cfg.getLeft().getRight());
+        var whileCondition = cfg.getLeft();
+        Assertions.assertSame(Block.BlockKind.WHILE, whileCondition.getKind());
+        Assertions.assertSame(whileCondition.getLeft().getRight(), whileCondition);
     }
 }

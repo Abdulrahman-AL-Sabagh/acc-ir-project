@@ -1,5 +1,6 @@
 package ir;
 
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -151,15 +152,28 @@ public class Block {
         return String.format("%s_%d ", block.kind, block.id);
     }
 
-    private void dfsBlock(Block block, StringBuilder sb) {
+    private void dfsBlock(Block block, StringBuilder sb, HashSet<Block> visited, HashSet<String> edges) {
         serializeBlock(block, sb);
 
         if (block.getLeft() != null) {
-            dfsBlock(block.getLeft(), sb);
+            String edgString = generateBlockName(block) + " -> " + generateBlockName(block.getLeft());
+            if (visited.contains(block.getLeft())) {
+                sb.append(edgString).append("\n");
+                return;
+            }
+            visited.add(block.getLeft());
+            dfsBlock(block.getLeft(), sb, visited, edges);
             sb.append(generateBlockName(block)).append("->").append(generateBlockName(block.getLeft())).append("\n");
         }
         if (block.getRight() != null) {
-            dfsBlock(block.getRight(), sb);
+            String edgString = generateBlockName(block) + " -> " + generateBlockName(block.getRight());
+
+            if (visited.contains(block.getRight())) {
+                sb.append(edgString).append("\n");
+                return;
+            }
+            visited.add(block.getRight());
+            dfsBlock(block.getRight(), sb,visited, edges);
             sb.append(generateBlockName(block)).append("->").append(generateBlockName(block.getRight())).append("\n");
         }
     }
@@ -169,7 +183,9 @@ public class Block {
 
         sb.append("digraph G {\n");
         sb.append("node [shape=box];\n");
-        dfsBlock(this, sb);
+        var visited = new HashSet<Block>();
+        var edges = new HashSet<String>();
+        dfsBlock(this, sb, visited, edges);
 
         sb.append("}");
         return sb.toString();

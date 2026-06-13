@@ -224,11 +224,21 @@ public class Parser {
         } else if (la.kind == 18) { // "while"
             Get();
             Expect(10); // "("
+            curBlock = curBlock.split(Block.BlockKind.WHILE).orElse(curBlock);
+            join = curBlock;
             Condition(l);
+
             Expect(11); // ")"
             Expect(12); // "{"
+            l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
+            curBlock = curBlock.split(BlockKind.WHILE_BODY).orElse(curBlock);
             StatSeq();
+
             Expect(13); // "}"
+            gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
+            curBlock.setRight(join);
+            curBlock = new Block(NORMAL);
+            fixup(l.getFix());
         } else if (la.kind == 19) {
             Get();
             Designator(false);
