@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,7 +53,11 @@ class ParserTest {
                         a = a + 1;
                     }
                 """);
+
         parser.Parse();
+        var cfg = parser.cfg;
+        var ifBlock = cfg.getLeft();
+        var joinBlock = cfg.getRight();
         System.out.println(parser.cfg.toGraphViz());
         Assertions.assertNotNull(parser.cfg.getLeft());
         Assertions.assertEquals(parser.cfg.getLeft().getKind(), Block.BlockKind.IF);
@@ -61,6 +66,11 @@ class ParserTest {
         Assertions.assertTrue(parser.cfg.getRight().getKind() == Block.BlockKind.NORMAL);
         Assertions.assertFalse(parser.cfg.getRight().getInstructions().isEmpty());
         Assertions.assertTrue(parser.cfg.getLeft().getRight() == parser.cfg.getRight());
+
+        // TESTING the LINK order
+        Assertions.assertEquals(cfg.getLink(), ifBlock);
+        Assertions.assertEquals(ifBlock.getLink(), joinBlock);
+        Assertions.assertNull(joinBlock.getLink());
     }
 
     @Test
@@ -76,7 +86,13 @@ class ParserTest {
                   }
                 """);
         parser.Parse();
+
         var cfg = parser.cfg;
+        var ifBlock = cfg.getLeft();
+        var elseIfBlock = cfg.getRight();
+        var elseIfBodyBlock = elseIfBlock.getLink();
+        var elseBlock = elseIfBlock.getRight();
+        var joinBlock = ifBlock.getRight();
         System.out.println(cfg.toGraphViz());
         Assertions.assertTrue(cfg.getKind() == Block.BlockKind.NORMAL);
         Assertions.assertFalse(cfg.getInstructions().isEmpty());
@@ -87,6 +103,24 @@ class ParserTest {
         Assertions.assertNotNull(cfg.getLeft().getRight());
         Assertions.assertNotNull(cfg.getRight().getLeft());
         Assertions.assertNotNull(cfg.getRight().getRight());
+
+        // TESTING LINK Order
+        Assertions.assertEquals(cfg.getLink(), ifBlock);
+        Assertions.assertEquals(ifBlock.getLink(), elseIfBlock);
+        Assertions.assertEquals(elseIfBlock.getLink(), elseIfBodyBlock);
+        Assertions.assertEquals(elseIfBodyBlock.getLink(), elseBlock);
+        System.out.println(elseBlock.getLink().getKind());
+        Assertions.assertEquals(elseBlock.getLink(), joinBlock);
+        Assertions.assertNull(joinBlock.getLink());
+
+
+        // TESTING DOM TREE
+
+
+        Assertions.assertTrue(joinBlock.getDomChildren().isEmpty());
+        parser.invertDomTree();
+        System.out.println(cfg.dominatorTreeToGraphViz());
+
     }
 
     @Test
@@ -101,12 +135,32 @@ class ParserTest {
         parser.Parse();
 
         var cfg = parser.cfg;
-        System.out.println(cfg.toGraphViz());
+        // System.out.println(cfg.toGraphViz());
+
         Assertions.assertTrue(cfg.getInstructions().size() > 1);
         Assertions.assertNotNull(cfg.getLeft());
         Assertions.assertNotNull(cfg.getLeft().getRight());
         var whileCondition = cfg.getLeft();
+        var whileBody = whileCondition.getLeft();
+        var joinBlock = whileCondition.getRight();
         Assertions.assertSame(Block.BlockKind.WHILE, whileCondition.getKind());
         Assertions.assertSame(whileCondition.getLeft().getRight(), whileCondition);
+
+
+        // TESTING LINK ORDER
+        Assertions.assertEquals(cfg.getLink(), whileCondition);
+        Assertions.assertEquals(whileCondition.getLink(), whileBody);
+        Assertions.assertEquals(whileBody.getLink(), joinBlock);
+        Assertions.assertNull(joinBlock.getLink());
+        parser.invertDomTree();
+        System.out.println(cfg.dominatorTreeToGraphViz());
+
+        // TESTING DOMINATOR TREE
+        Assertions.assertEquals(cfg.getDomChildren(), List.of(whileCondition));
+        Assertions.assertTrue(whileCondition.getDomChildren().containsAll(List.of(whileBody, joinBlock)));
+        Assertions.assertTrue(whileBody.getDomChildren().isEmpty());
+        Assertions.assertTrue(joinBlock.getDomChildren().isEmpty());
+
+
     }
 }

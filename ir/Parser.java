@@ -3,8 +3,7 @@ package ir;
 
 import ir.Block.BlockKind;
 
-import static ir.Block.BlockKind.IF;
-import static ir.Block.BlockKind.NORMAL;
+import static ir.Block.BlockKind.*;
 
 public class Parser {
     public static final int _EOF = 0;
@@ -28,6 +27,14 @@ public class Parser {
     public Block curBlock;
 
 
+    void invertDomTree() {
+        for (Block b = cfg; b != null; b = b.getLink()) {
+            if (b.getDom() != null) {
+                b.getDom().getDomChildren().add(b);
+            }
+        }
+    }
+
     private Instruction gen(Node x, Code.OpCode op, Node y) {
 
 
@@ -41,6 +48,7 @@ public class Parser {
         i.setY(curBlock.getInstructions().getFirst());
         i.getBlock().setRight(curBlock);
         curBlock.getPred().add(i.getBlock());
+        curBlock.setDom(i.getBlock());
     }
 
     public Parser(Scanner scanner) {
@@ -161,7 +169,8 @@ public class Parser {
 
     void Statement() {
         Label l = new Label(null, null, null);
-        Block join = null;
+        Block join = new Block(NORMAL);
+        join.setDom(curBlock);
         if (la.kind == 1) {
             Node x, y;
             x = Designator(false);
@@ -174,8 +183,12 @@ public class Parser {
             Expect(10); // "("
             Condition(l);
             l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
-            curBlock = curBlock.split(IF).orElse(curBlock);
-            join = new Block(NORMAL);
+            var splitResult = curBlock.split(IF);
+            if (splitResult.isPresent()) {
+                curBlock.setLink(splitResult.get());
+                curBlock = splitResult.get();
+            }
+
             Expect(11); // ")"
             Expect(12); // "{"
             StatSeq();
@@ -185,10 +198,10 @@ public class Parser {
                 curBlock.setRight(join);
                 fixup(l.getFix());
                 l.getFix().getBlock().setRight(join);
-                curBlock = join;
+                curBlock.setLink(join);
+                curBlock = curBlock.getLink();
                 return;
             }
-            // TODO: Handle else and elseif splits and fix
             while (la.kind == 16) { // "elseif"
                 Get();
                 Expect(10); // "("
@@ -196,11 +209,16 @@ public class Parser {
                 // curBlock.addInstruction(null, Code.OpCode.jmp, join.getInstructions().getFirst());
                 gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
                 curBlock.setRight(join);
-                curBlock = new Block(NORMAL);
+                curBlock.setLink(new Block(ELSE_IF));
+                curBlock = curBlock.getLink();
                 fixup(l.getFix());
                 Condition(l);
                 l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
-                curBlock = curBlock.split(Block.BlockKind.ELSE_IF).orElse(curBlock);
+                splitResult = curBlock.split(ELSE_IF_BODY);
+                if (splitResult.isPresent()) {
+                    curBlock.setLink(splitResult.get());
+                    curBlock = curBlock.getLink();
+                }
                 Expect(11); // ")"
                 Expect(12); // "{"
                 StatSeq();
@@ -208,9 +226,12 @@ public class Parser {
             }
             gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
             curBlock.setRight(join);
-            curBlock = new Block(NORMAL);
+            var b = new Block(NORMAL);
+            curBlock.setLink(b);
+            curBlock = curBlock.getLink();
             fixup(l.getFix());
             if (la.kind == 17) { // "else"
+                curBlock.setKind(ELSE);
                 Get();
                 Expect(12); // "{"
                 StatSeq();
@@ -218,26 +239,37 @@ public class Parser {
             }
             curBlock.setLeft(join);
             join.getPred().add(curBlock);
-            curBlock = join;
+            curBlock.setLink(join);
+            curBlock = curBlock.getLink();
 
 
         } else if (la.kind == 18) { // "while"
             Get();
             Expect(10); // "("
-            curBlock = curBlock.split(Block.BlockKind.WHILE).orElse(curBlock);
+
+            var splitResult = curBlock.split(Block.BlockKind.WHILE);
+            if (splitResult.isPresent()) {
+                curBlock.setLink(splitResult.get());
+                curBlock = curBlock.getLink();
+            }
             join = curBlock;
             Condition(l);
 
             Expect(11); // ")"
             Expect(12); // "{"
             l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
-            curBlock = curBlock.split(BlockKind.WHILE_BODY).orElse(curBlock);
+            splitResult = curBlock.split(BlockKind.WHILE_BODY);
+            if (splitResult.isPresent()) {
+                curBlock.setLink(splitResult.get());
+                curBlock = curBlock.getLink();
+            }
             StatSeq();
 
             Expect(13); // "}"
             gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
             curBlock.setRight(join);
-            curBlock = new Block(NORMAL);
+            curBlock.setLink(new Block(NORMAL));
+            curBlock = curBlock.getLink();
             fixup(l.getFix());
         } else if (la.kind == 19) {
             Get();

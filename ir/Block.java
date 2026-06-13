@@ -1,31 +1,29 @@
 package ir;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
-public class Block {
+public class Block extends Node {
 
     // related to  the Graphviz project that is used with the testcases
     private static final boolean ENABLE_GRAPH_VIZ_GENERATION = true;
+    private Block dom;
+    private final List<Block> domChildren;
+    private Block link;
 
     enum BlockKind {
         WHILE,
         WHILE_BODY,
         IF,
-        IF_BODY,
         ELSE_IF,
         ELSE_IF_BODY,
         ELSE,
-        ELSE_BODY,
-        NORMAL;
+        NORMAL
 
 
     }
 
     private int id;
-    private final BlockKind kind;
+    private BlockKind kind;
     private Block left;
     private Block right;
     private List<Block> pred;
@@ -40,6 +38,7 @@ public class Block {
         this.pred = pred;
         this.instructions = instructions;
         instructions.add(new Instruction(null, Code.OpCode.nop, null, this));
+        this.domChildren = new ArrayList<>();
     }
 
 
@@ -50,16 +49,18 @@ public class Block {
      * To avoid confusions with the slides I will set the curBlock in the parser
      * to the return value of this function
      *
-     * @param kind
      * @return {@link Block}
      */
+
+
     Optional<Block> split(BlockKind kind) {
         if (this.instructions.getFirst() != this.instructions.getLast()
-            //&& !Code.jumpCommands.contains(this.instructions.getLast().getOpCode())
+                && this.instructions.getLast().getOpCode() != Code.OpCode.jmp
         ) {
             Block b = new Block(kind);
             this.setLeft(b);
             b.pred.add(this);
+            b.setDom(this);
             return Optional.of(b);
         }
         return Optional.empty();
@@ -138,9 +139,10 @@ public class Block {
     // Code constructed in a similar structure to this here
     // https://graphviz.org/Gallery/directed/psg.html
     public void serializeBlock(Block block, StringBuilder sb) {
-
-        sb.append(generateBlockName(block)).append(" ");
+        var blockName = generateBlockName(block);
+        sb.append(blockName).append(" ");
         sb.append("[ label=<").append("\n").append("<table> \n");
+        sb.append("<tr><td><b>").append(blockName).append("</b></td></tr>\n");
         for (Instruction instruction : block.getInstructions()) {
             sb.append("<tr><td>").append(instruction.toString()).append("</td></tr>").append("\n");
         }
@@ -152,7 +154,7 @@ public class Block {
         return String.format("%s_%d ", block.kind, block.id);
     }
 
-    private void dfsBlock(Block block, StringBuilder sb, HashSet<Block> visited, HashSet<String> edges) {
+    private void dfsBlock(Block block, StringBuilder sb, HashSet<Block> visited) {
         serializeBlock(block, sb);
 
         if (block.getLeft() != null) {
@@ -162,7 +164,7 @@ public class Block {
                 return;
             }
             visited.add(block.getLeft());
-            dfsBlock(block.getLeft(), sb, visited, edges);
+            dfsBlock(block.getLeft(), sb, visited);
             sb.append(generateBlockName(block)).append("->").append(generateBlockName(block.getLeft())).append("\n");
         }
         if (block.getRight() != null) {
@@ -173,7 +175,7 @@ public class Block {
                 return;
             }
             visited.add(block.getRight());
-            dfsBlock(block.getRight(), sb,visited, edges);
+            dfsBlock(block.getRight(), sb, visited);
             sb.append(generateBlockName(block)).append("->").append(generateBlockName(block.getRight())).append("\n");
         }
     }
@@ -184,10 +186,55 @@ public class Block {
         sb.append("digraph G {\n");
         sb.append("node [shape=box];\n");
         var visited = new HashSet<Block>();
-        var edges = new HashSet<String>();
-        dfsBlock(this, sb, visited, edges);
+
+        dfsBlock(this, sb, visited);
 
         sb.append("}");
         return sb.toString();
+    }
+
+    private void toDominatorTreeString(Block current, StringBuilder sb) {
+        var currentName = generateBlockName(current);
+        for (Block b : current.getDomChildren()) {
+            toDominatorTreeString(b, sb);
+            var bName = generateBlockName(b);
+            serializeBlock(b, sb);
+            sb.append(bName).append(" -> ").append(currentName).append("[dir=back ]\n");
+        }
+    }
+
+
+    public String dominatorTreeToGraphViz() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("digraph DominatorTree {\n");
+        sb.append("node [shape=box];\n");
+        toDominatorTreeString(this, sb);
+        sb.append("}");
+        return sb.toString();
+
+    }
+
+    public Block getDom() {
+        return dom;
+    }
+
+    public void setDom(Block dom) {
+        this.dom = dom;
+    }
+
+    public List<Block> getDomChildren() {
+        return domChildren;
+    }
+
+    public Block getLink() {
+        return link;
+    }
+
+    public void setLink(Block link) {
+        this.link = link;
+    }
+
+    public void setKind(BlockKind kind) {
+        this.kind = kind;
     }
 }
