@@ -34,7 +34,7 @@ class ParserTest {
         parser.Parse();
         System.out.println(parser.cfg);
         Assertions.assertFalse(parser.cfg.getInstructions().isEmpty());
-        Assertions.assertEquals(6, parser.cfg.getInstructions().size());
+        Assertions.assertEquals(5, parser.cfg.getInstructions().size());
     }
 
     @Test
@@ -64,9 +64,8 @@ class ParserTest {
         Assertions.assertFalse(parser.cfg.getLeft().getInstructions().isEmpty());
         Assertions.assertNotNull(parser.cfg.getRight());
         Assertions.assertSame(Block.BlockKind.NORMAL, parser.cfg.getRight().getKind());
-        Assertions.assertFalse(parser.cfg.getRight().getInstructions().isEmpty());
         Assertions.assertSame(Block.BlockKind.NORMAL, generatedElseBlock.getKind());
-        Assertions.assertEquals(1, generatedElseBlock.getInstructions().size());
+        Assertions.assertTrue( generatedElseBlock.getInstructions().isEmpty());
         Assertions.assertSame(generatedElseBlock.getLeft(), joinBlock);
 
 

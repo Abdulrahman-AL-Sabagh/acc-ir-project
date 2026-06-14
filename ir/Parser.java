@@ -44,7 +44,6 @@ public class Parser {
         return path.stream().toList();
     }
 
-    //TODO : IMPLEMENT THIS
     Block getCommonDom(Block p, Block q) {
         if (p == null) return q;
         else {
@@ -76,7 +75,7 @@ public class Parser {
     }
 
     void genJump(Block b) {
-        gen(null, Code.OpCode.jmp, b.getInstructions().getFirst());
+        gen(null, Code.OpCode.jmp, b.getFirst());
         curBlock.setRight(b);
         b.getPred().add(curBlock);
     }
@@ -123,7 +122,7 @@ public class Parser {
     }
 
     private void fixup(Instruction i) {
-        i.setY(curBlock.getInstructions().getFirst());
+        i.setY(curBlock.getFirst());
         i.getBlock().setRight(curBlock);
         curBlock.getPred().add(i.getBlock());
         curBlock.setDom(i.getBlock());

@@ -10,6 +10,7 @@ public class Block extends Node {
     private final List<Block> domChildren;
     private Block link;
     private HashMap<String, Node> value = new HashMap<>();
+    private final Instruction first;
 
     enum BlockKind {
         WHILE,
@@ -38,8 +39,8 @@ public class Block extends Node {
         this.right = right;
         this.pred = pred;
         this.instructions = instructions;
-        instructions.add(new Instruction(null, Code.OpCode.nop, null, this));
         this.domChildren = new ArrayList<>();
+        this.first = new Instruction(null, Code.OpCode.nop, null, this);
     }
 
 
@@ -73,6 +74,7 @@ public class Block extends Node {
 
     public Block(BlockKind kind) {
         this(idGenerator++, kind, null, null, new ArrayList<>(), new ArrayList<>());
+
     }
 
 
@@ -246,5 +248,9 @@ public class Block extends Node {
 
     public void setValue(HashMap<String, Node> value) {
         this.value = value;
+    }
+
+    public Instruction getFirst() {
+        return first;
     }
 }
