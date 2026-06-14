@@ -3,6 +3,8 @@ package ir;
 
 import ir.Block.BlockKind;
 
+import java.util.*;
+
 import static ir.Block.BlockKind.*;
 
 public class Parser {
@@ -21,10 +23,69 @@ public class Parser {
 
     public Scanner scanner;
     public Errors errors;
-    private SymbolTable symbolTable = new SymbolTable();
+    private final SymbolTable symbolTable = new SymbolTable();
     public static final Code code = new Code();
     public Block cfg;
     public Block curBlock;
+
+    void genPhi(Obj var) {
+        Instruction i = gen(var, Code.OpCode.phi, null);
+        curBlock.getValue().put(var.name, i);
+
+    }
+
+    private List<Block> getPathFromBlockToRoot(Block block) {
+        var path = new HashSet<Block>();
+        var current = block;
+        while (current != null) {
+            path.add(current);
+            current = current.getDom();
+        }
+        return path.stream().toList();
+    }
+
+    //TODO : IMPLEMENT THIS
+    Block getCommonDom(Block p, Block q) {
+        if (p == null) return q;
+        else {
+            var domListOfP = getPathFromBlockToRoot(p);
+            var domListOfQ = new ArrayList<>(getPathFromBlockToRoot(q));
+            var differences = domListOfQ.retainAll(domListOfP);
+            System.out.println(differences);
+            return domListOfQ.getFirst();
+
+        }
+    }
+
+    void genPhis() {
+        curBlock.setValue((HashMap<String, Node>) curBlock.getPred().getFirst().getValue().clone());
+        var locals = symbolTable.currScope.getLocals();
+        for (var local : locals.keySet()) {
+            for (Block pred : curBlock.getPred()) {
+                if (curBlock.getValue().get(local) != pred.getValue().get(local)) {
+                    genPhi(locals.get(local));
+                    break;
+                }
+            }
+        }
+
+        curBlock.setDom(null);
+        for (Block b : curBlock.getPred()) {
+            curBlock.setDom(getCommonDom(curBlock.getDom(), b));
+        }
+    }
+
+    void genJump(Block b) {
+        gen(null, Code.OpCode.jmp, b.getInstructions().getFirst());
+        curBlock.setRight(b);
+        b.getPred().add(curBlock);
+    }
+
+    void linkWithLeft(Block b) {
+        curBlock.setLeft(b);
+        b.getPred().add(curBlock);
+        curBlock.setLink(b);
+    }
 
 
     void invertDomTree() {
@@ -35,20 +96,30 @@ public class Parser {
         }
     }
 
+    Node cur(Node x) {
+        if (!(x instanceof Obj var)) return x;
+        if (var.level == symbolTable.curLevel) x = curBlock.getValue().get(var.name);
+        return x;
+    }
+
+    void genAssign(Obj var, Node y) {
+        Instruction i = new Instruction(var, Code.OpCode.ass, cur(y), curBlock);
+        curBlock.getInstructions().add(i);
+        if (var.level == symbolTable.curLevel) curBlock.getValue().put(var.name, i);
+    }
+
     private Instruction gen(Node x, Code.OpCode op, Node y) {
-
-
-        var instr = new Instruction(x, op, y, curBlock);
+        var instr = new Instruction(cur(x), op, cur(y), curBlock);
         curBlock.getInstructions().add(instr);
         return instr;
     }
 
     private void fixup(Instruction i) {
-
         i.setY(curBlock.getInstructions().getFirst());
         i.getBlock().setRight(curBlock);
         curBlock.getPred().add(i.getBlock());
         curBlock.setDom(i.getBlock());
+        curBlock.setValue((HashMap<String, Node>) i.getBlock().getValue().clone());
     }
 
     public Parser(Scanner scanner) {
@@ -169,30 +240,28 @@ public class Parser {
 
     void Statement() {
         Label l = new Label(null, null, null);
-        Block join = new Block(NORMAL);
-        join.setDom(curBlock);
+
         if (la.kind == 1) {
-            Node x, y;
-            x = Designator(false);
+            Obj x;
+            Node y;
+            x = (Obj) Designator(false);
             Expect(14);
             y = Expression();
-            gen(x, Code.OpCode.ass, y);
+            genAssign(x, y);
             Expect(5);
         } else if (la.kind == 15) { // "if"
             Get();
             Expect(10); // "("
             Condition(l);
             l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
-            var splitResult = curBlock.split(IF);
-            if (splitResult.isPresent()) {
-                curBlock.setLink(splitResult.get());
-                curBlock = splitResult.get();
-            }
+            curBlock = curBlock.split(IF).orElse(curBlock);
 
             Expect(11); // ")"
             Expect(12); // "{"
             StatSeq();
             Expect(13); // "}"
+            Block join = new Block(NORMAL);
+            /*
             if (la.kind != 16 && la.kind != 17) {
                 gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
                 curBlock.setRight(join);
@@ -202,32 +271,31 @@ public class Parser {
                 curBlock = curBlock.getLink();
                 return;
             }
+*/
             while (la.kind == 16) { // "elseif"
                 Get();
                 Expect(10); // "("
                 // TOOD: Decide later how to get rid of this jmp command so it matches the expected output in the slides
                 // curBlock.addInstruction(null, Code.OpCode.jmp, join.getInstructions().getFirst());
-                gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
-                curBlock.setRight(join);
+                genJump(join);
                 curBlock.setLink(new Block(ELSE_IF));
                 curBlock = curBlock.getLink();
                 fixup(l.getFix());
                 Condition(l);
                 l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
-                splitResult = curBlock.split(ELSE_IF_BODY);
-                if (splitResult.isPresent()) {
-                    curBlock.setLink(splitResult.get());
-                    curBlock = curBlock.getLink();
-                }
+                curBlock = curBlock.split(ELSE_IF_BODY).orElse(curBlock);
                 Expect(11); // ")"
                 Expect(12); // "{"
                 StatSeq();
                 Expect(13); // "}"
             }
-            gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
+            genJump(join);
+           /* gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
             curBlock.setRight(join);
             var b = new Block(NORMAL);
             curBlock.setLink(b);
+            curBlock = curBlock.getLink();*/
+            curBlock.setLink(new Block(NORMAL));
             curBlock = curBlock.getLink();
             fixup(l.getFix());
             if (la.kind == 17) { // "else"
@@ -237,11 +305,10 @@ public class Parser {
                 StatSeq();
                 Expect(13); // "}"
             }
-            curBlock.setLeft(join);
-            join.getPred().add(curBlock);
-            curBlock.setLink(join);
-            curBlock = curBlock.getLink();
 
+            linkWithLeft(join);
+            curBlock = join;
+            genPhis();
 
         } else if (la.kind == 18) { // "while"
             Get();
@@ -252,7 +319,7 @@ public class Parser {
                 curBlock.setLink(splitResult.get());
                 curBlock = curBlock.getLink();
             }
-            join = curBlock;
+            Block join = curBlock;
             Condition(l);
 
             Expect(11); // ")"

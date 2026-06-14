@@ -1,17 +1,36 @@
 package ir;
 
+import java.util.Objects;
+
 public class Instruction extends Node {
-    private  Node x;
-    private  Code.OpCode opCode;
+    private int id;
+    private Node x;
+    private Code.OpCode opCode;
     private Node y;
     private final Block block;
+    private static int idGenerator = 0;
 
     public Instruction(Node x, Code.OpCode opCode, Node y, Block block) {
         this.x = x;
         this.opCode = opCode;
         this.y = y;
         this.block = block;
+        // To make things easier, we will mark the _nop_ with 0
+        this.id = idGenerator++;
 
+
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Instruction that = (Instruction) o;
+        return Objects.equals(x, that.x) && opCode == that.opCode && Objects.equals(y, that.y);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, opCode, y);
     }
 
     public Node getX() {
@@ -30,8 +49,8 @@ public class Instruction extends Node {
         if (n == null) {
             return "_";
         }
-        if (n instanceof Instruction) {
-            return String.format("(%d)", n.getId());
+        if (n instanceof Instruction var) {
+            return String.format("(%d)", var.getId());
         } else return n.toString();
     }
 
@@ -45,7 +64,7 @@ public class Instruction extends Node {
 
     @Override
     public String toString() {
-        return String.format("%s %s %s", stringifyNode(x), opCode.name(), stringifyNode(y));
+        return String.format("%s: %s %s %s", this.getId(), stringifyNode(x), opCode.name(), stringifyNode(y));
     }
 
     public void setX(Node x) {
@@ -54,5 +73,13 @@ public class Instruction extends Node {
 
     public void setOpCode(Code.OpCode opCode) {
         this.opCode = opCode;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 }

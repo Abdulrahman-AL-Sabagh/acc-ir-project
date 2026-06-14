@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 
 class ParserTest {
 
@@ -15,6 +13,7 @@ class ParserTest {
     private Parser constructParserForTestCase(String code) {
         return new Parser(new Scanner(new ByteArrayInputStream(code.getBytes())));
     }
+
 
     @Test
     void checkIfTheCodeOnSlide29ChapterIntermediateRepresentationPart1CanBeGeneratedCorrectly() {
@@ -56,21 +55,35 @@ class ParserTest {
 
         parser.Parse();
         var cfg = parser.cfg;
+        var generatedElseBlock = cfg.getRight();
         var ifBlock = cfg.getLeft();
-        var joinBlock = cfg.getRight();
+        var joinBlock = cfg.getRight().getLeft();
         System.out.println(parser.cfg.toGraphViz());
         Assertions.assertNotNull(parser.cfg.getLeft());
-        Assertions.assertEquals(parser.cfg.getLeft().getKind(), Block.BlockKind.IF);
+        Assertions.assertEquals(Block.BlockKind.IF, parser.cfg.getLeft().getKind());
         Assertions.assertFalse(parser.cfg.getLeft().getInstructions().isEmpty());
         Assertions.assertNotNull(parser.cfg.getRight());
-        Assertions.assertTrue(parser.cfg.getRight().getKind() == Block.BlockKind.NORMAL);
+        Assertions.assertSame(Block.BlockKind.NORMAL, parser.cfg.getRight().getKind());
         Assertions.assertFalse(parser.cfg.getRight().getInstructions().isEmpty());
-        Assertions.assertTrue(parser.cfg.getLeft().getRight() == parser.cfg.getRight());
+        Assertions.assertSame(Block.BlockKind.NORMAL, generatedElseBlock.getKind());
+        Assertions.assertEquals(1, generatedElseBlock.getInstructions().size());
+        Assertions.assertSame(generatedElseBlock.getLeft(), joinBlock);
+
+
+        // TESTING correct order of predecessor
+        Assertions.assertTrue(cfg.getPred().isEmpty());
+        Assertions.assertEquals(1, ifBlock.getPred().size());
+        Assertions.assertEquals(1, generatedElseBlock.getPred().size());
+        Assertions.assertEquals(2, joinBlock.getPred().size());
 
         // TESTING the LINK order
         Assertions.assertEquals(cfg.getLink(), ifBlock);
-        Assertions.assertEquals(ifBlock.getLink(), joinBlock);
+        Assertions.assertEquals(ifBlock.getLink(), generatedElseBlock);
+        Assertions.assertEquals(generatedElseBlock.getLink(), joinBlock);
         Assertions.assertNull(joinBlock.getLink());
+
+        // TESTING PHI Existence
+        Assertions.assertTrue(joinBlock.getInstructions().stream().anyMatch(i -> i.getOpCode().equals(Code.OpCode.phi)));
     }
 
     @Test
@@ -94,7 +107,7 @@ class ParserTest {
         var elseBlock = elseIfBlock.getRight();
         var joinBlock = ifBlock.getRight();
         System.out.println(cfg.toGraphViz());
-        Assertions.assertTrue(cfg.getKind() == Block.BlockKind.NORMAL);
+        Assertions.assertSame(Block.BlockKind.NORMAL, cfg.getKind());
         Assertions.assertFalse(cfg.getInstructions().isEmpty());
 
         Assertions.assertNotNull(cfg.getLeft());
@@ -114,12 +127,8 @@ class ParserTest {
         Assertions.assertNull(joinBlock.getLink());
 
 
-        // TESTING DOM TREE
-
-
-        Assertions.assertTrue(joinBlock.getDomChildren().isEmpty());
-        parser.invertDomTree();
-        System.out.println(cfg.dominatorTreeToGraphViz());
+        // TESTING PHI Existence
+        Assertions.assertTrue(joinBlock.getInstructions().stream().anyMatch(i -> i.getOpCode().equals(Code.OpCode.phi)));
 
     }
 
@@ -163,4 +172,34 @@ class ParserTest {
 
 
     }
+
+/*    @Test
+    void checkSSAExampleFromSlides() {
+        var parser = constructParserForTestCase("""
+                fn main() {
+                    var a: int;
+                    var b: int;
+                    a = 1;
+                    b = a + 1;
+                    a = 2;
+                    b = a + 1;
+                }
+                """);
+        parser.Parse();
+        var symbol = parser.getSymbolTable();
+        var instructions = parser.cfg.getInstructions();
+        System.out.println(instructions);
+        // first instruction
+
+        var firstInstruction = instructions.get(1);
+        Assertions.assertEquals("a", ((Obj) firstInstruction.getX()).name);
+        Assertions.assertEquals(Code.OpCode.ass, firstInstruction.getOpCode());
+        Assertions.assertEquals(new Constant(1), firstInstruction.getY());
+
+        // second instruction
+        var secondInstruction = instructions.get(2);
+        Assertions.assertEquals(secondInstruction.getX(), firstInstruction);
+        Assertions.assertEquals(Code.OpCode.plus, secondInstruction.getOpCode());
+        Assertions.assertEquals(new Constant(1), secondInstruction.getY());
+    }*/
 }

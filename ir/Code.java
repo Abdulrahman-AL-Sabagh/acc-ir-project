@@ -50,6 +50,7 @@ public class Code {
             return val;
         }
 
+
     }
 
     public final static List<OpCode> jumpCommands =

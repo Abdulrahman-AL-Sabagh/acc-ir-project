@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Obj extends Node {
+    private int id;
+    private static int idGenerator;
     final String name;
     final Kind kind;
     private final Struct type;
@@ -11,9 +13,10 @@ public class Obj extends Node {
     int adr;
     int level;
     int nVars;
+    int num;
     Map<String, Obj> locals;
 
-    public Obj(String name, Kind kind) {
+    public Obj(String name, Kind kind, int level, int num) {
         this.name = name;
         this.kind = kind;
         this.locals = new HashMap<>();
@@ -22,6 +25,9 @@ public class Obj extends Node {
         } else {
             this.type = null;
         }
+        this.id = idGenerator++;
+        this.num = num;
+        this.level = level;
     }
 
 
@@ -37,6 +43,22 @@ public class Obj extends Node {
          */
 
 
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public int getNum() {
+        return num;
+    }
+
+    public void setNum(int num) {
+        this.num = num;
     }
 
     @Override

@@ -9,6 +9,7 @@ public class Block extends Node {
     private Block dom;
     private final List<Block> domChildren;
     private Block link;
+    private HashMap<String, Node> value = new HashMap<>();
 
     enum BlockKind {
         WHILE,
@@ -61,6 +62,8 @@ public class Block extends Node {
             this.setLeft(b);
             b.pred.add(this);
             b.setDom(this);
+            b.setValue((HashMap<String, Node>) value.clone());
+            this.setLink(b);
             return Optional.of(b);
         }
         return Optional.empty();
@@ -77,7 +80,7 @@ public class Block extends Node {
     public String toString() {
         var string = new StringBuilder();
         for (Instruction instruction : this.instructions) {
-            string.append(String.format("%d. ", instruction.getId())).append(instruction.toString()).append("\n");
+            string.append(instruction).append("\n");
         }
         return string.toString();
     }
@@ -88,7 +91,6 @@ public class Block extends Node {
 
     public void setLeft(Block left) {
         this.left = left;
-        left.getPred().add(this);
     }
 
     public Block getRight() {
@@ -97,7 +99,7 @@ public class Block extends Node {
 
     public void setRight(Block right) {
         this.right = right;
-        right.getPred().add(this);
+
     }
 
     public List<Block> getPred() {
@@ -236,5 +238,13 @@ public class Block extends Node {
 
     public void setKind(BlockKind kind) {
         this.kind = kind;
+    }
+
+    public HashMap<String, Node> getValue() {
+        return value;
+    }
+
+    public void setValue(HashMap<String, Node> value) {
+        this.value = value;
     }
 }

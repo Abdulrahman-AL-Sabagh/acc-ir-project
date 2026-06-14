@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public class SymbolTable {
 
-
+    static final int nLocals = 64;
     public static Struct intType = new Struct(Struct.Kind.Int, 32, 0, null);
     Scope currScope = null;
     int curLevel = -2;
@@ -77,8 +77,8 @@ public class SymbolTable {
         }
         Obj obj = null;
         switch (kind) {
-            case Type -> obj = new Obj(name, Obj.Kind.Type);
-            case Var -> obj = new Obj(name, kind);
+            case Type -> obj = new Obj(name, Obj.Kind.Type, curLevel,currScope.nVars);
+            case Var -> obj = new Obj(name, kind, curLevel,currScope.nVars);
             //  case Meth -> obj = new Obj(name, kind, new Struct(Struct.Kind.None), 0, 0, curLevel, 0, 0, new HashMap<>());
             default -> {
             }
