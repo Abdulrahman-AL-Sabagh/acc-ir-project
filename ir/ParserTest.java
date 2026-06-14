@@ -137,7 +137,9 @@ class ParserTest {
         var parser = constructParserForTestCase("""
                                       fn main() {
                                         var a: int;
+                                        var b: int;
                                         a = 10;
+                                        b = 13;
                                         while (a > 0) { a = a - 1 ; }
                                       }
                 """);
@@ -152,8 +154,15 @@ class ParserTest {
         var whileCondition = cfg.getLeft();
         var whileBody = whileCondition.getLeft();
         var joinBlock = whileCondition.getRight();
-        Assertions.assertSame(Block.BlockKind.WHILE, whileCondition.getKind());
-        Assertions.assertSame(whileCondition.getLeft().getRight(), whileCondition);
+
+
+        // TESTING correct CFG order
+        Assertions.assertSame(Block.BlockKind.NORMAL, cfg.getKind());
+        Assertions.assertEquals(cfg.getLeft(), whileCondition);
+        Assertions.assertEquals(whileCondition.getLeft(), whileBody);
+        Assertions.assertEquals(whileCondition.getRight(), joinBlock);
+        Assertions.assertEquals(whileBody.getRight(), whileCondition);
+
 
 
         // TESTING LINK ORDER
@@ -171,6 +180,8 @@ class ParserTest {
         Assertions.assertTrue(joinBlock.getDomChildren().isEmpty());
 
 
+        // TESTING PHI CORRECTNESS
+        Assertions.assertEquals(1, whileCondition.getInstructions().stream().filter(i -> i.getOpCode().equals(Code.OpCode.phi)).toList().size());
     }
 
 /*    @Test

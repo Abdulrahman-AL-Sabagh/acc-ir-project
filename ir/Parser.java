@@ -96,6 +96,14 @@ public class Parser {
         }
     }
 
+    void generatePhiForAllLocals() {
+        var locals = symbolTable.currScope.getLocals();
+        for (var local : locals.keySet()) {
+            genPhi(locals.get(local));
+        }
+    }
+
+
     Node cur(Node x) {
         if (!(x instanceof Obj var)) return x;
         if (var.level == symbolTable.curLevel) x = curBlock.getValue().get(var.name);
@@ -238,6 +246,42 @@ public class Parser {
         }
     }
 
+    void eliminateRedundantPhis(Block join) {
+        for (int i = 0; i < join.getInstructions().size(); i++) {
+            var phi = join.getInstructions().get(i);
+            if (!phi.getOpCode().equals(Code.OpCode.phi) || phi.getX() == null) continue;
+
+            Node leftOperand = phi.getX();
+
+            while (!(leftOperand instanceof Obj)) {
+                leftOperand = ((Instruction) leftOperand).getX();
+            }
+            var varname = ((Obj) leftOperand).name;
+            var whileBody = join.getPred().get(1);
+            if (whileBody.getValue().get(varname).equals(phi)) {
+                join.getInstructions().set(i, null);
+                rename(phi, join.getPred().getFirst().getValue().get(varname));
+            }
+        }
+        var result = join.getInstructions().stream().filter(Objects::nonNull).toList();
+        join.setInstructions(new ArrayList<>(result));
+    }
+
+    void rename(Instruction phi, Node value) {
+        var current = cfg;
+        while (current != null) {
+            var filteredList = current.getInstructions().stream().map(i -> {
+                if (i == phi) {
+                    return (Instruction) value;
+                } else {
+                    return i;
+                }
+            }).toList();
+            current.setInstructions(new ArrayList<>(filteredList));
+            current = current.getLink();
+        }
+    }
+
     void Statement() {
         Label l = new Label(null, null, null);
 
@@ -261,17 +305,7 @@ public class Parser {
             StatSeq();
             Expect(13); // "}"
             Block join = new Block(NORMAL);
-            /*
-            if (la.kind != 16 && la.kind != 17) {
-                gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
-                curBlock.setRight(join);
-                fixup(l.getFix());
-                l.getFix().getBlock().setRight(join);
-                curBlock.setLink(join);
-                curBlock = curBlock.getLink();
-                return;
-            }
-*/
+
             while (la.kind == 16) { // "elseif"
                 Get();
                 Expect(10); // "("
@@ -290,11 +324,6 @@ public class Parser {
                 Expect(13); // "}"
             }
             genJump(join);
-           /* gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
-            curBlock.setRight(join);
-            var b = new Block(NORMAL);
-            curBlock.setLink(b);
-            curBlock = curBlock.getLink();*/
             curBlock.setLink(new Block(NORMAL));
             curBlock = curBlock.getLink();
             fixup(l.getFix());
@@ -314,27 +343,22 @@ public class Parser {
             Get();
             Expect(10); // "("
 
-            var splitResult = curBlock.split(Block.BlockKind.WHILE);
-            if (splitResult.isPresent()) {
-                curBlock.setLink(splitResult.get());
-                curBlock = curBlock.getLink();
-            }
+            curBlock = curBlock.split(Block.BlockKind.WHILE).orElse(curBlock);
+
             Block join = curBlock;
+            generatePhiForAllLocals();
             Condition(l);
 
             Expect(11); // ")"
             Expect(12); // "{"
             l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
-            splitResult = curBlock.split(BlockKind.WHILE_BODY);
-            if (splitResult.isPresent()) {
-                curBlock.setLink(splitResult.get());
-                curBlock = curBlock.getLink();
-            }
+            curBlock = curBlock.split(BlockKind.WHILE_BODY).orElse(curBlock);
+
             StatSeq();
 
             Expect(13); // "}"
-            gen(null, Code.OpCode.jmp, join.getInstructions().getFirst());
-            curBlock.setRight(join);
+            genJump(join);
+            eliminateRedundantPhis(join);
             curBlock.setLink(new Block(NORMAL));
             curBlock = curBlock.getLink();
             fixup(l.getFix());

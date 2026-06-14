@@ -28,10 +28,10 @@ public class Block extends Node {
     private Block left;
     private Block right;
     private List<Block> pred;
-    private List<Instruction> instructions;
+    private ArrayList<Instruction> instructions;
 
 
-    private Block(int id, BlockKind kind, Block left, Block right, List<Block> pred, List<Instruction> instructions) {
+    private Block(int id, BlockKind kind, Block left, Block right, List<Block> pred, ArrayList<Instruction> instructions) {
         this.id = id;
         this.kind = kind;
         this.left = left;
@@ -72,7 +72,7 @@ public class Block extends Node {
     static int idGenerator = 0;
 
     public Block(BlockKind kind) {
-        this(idGenerator++, kind, null, null, new LinkedList<>(), new LinkedList<>());
+        this(idGenerator++, kind, null, null, new ArrayList<>(), new ArrayList<>());
     }
 
 
@@ -110,11 +110,11 @@ public class Block extends Node {
         this.pred = pred;
     }
 
-    public List<Instruction> getInstructions() {
+    public ArrayList<Instruction> getInstructions() {
         return instructions;
     }
 
-    public void setInstructions(List<Instruction> instructions) {
+    public void setInstructions(ArrayList<Instruction> instructions) {
         this.instructions = instructions;
     }
 
