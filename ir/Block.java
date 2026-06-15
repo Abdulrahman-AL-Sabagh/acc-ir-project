@@ -2,7 +2,7 @@ package ir;
 
 import java.util.*;
 
-public class Block extends Node {
+public class Block {
 
     // related to  the Graphviz project that is used with the testcases
     private static final boolean ENABLE_GRAPH_VIZ_GENERATION = true;
@@ -19,7 +19,9 @@ public class Block extends Node {
         ELSE_IF,
         ELSE_IF_BODY,
         ELSE,
-        NORMAL
+        NORMAL,
+        ENTRY,
+        EXIT
 
 
     }
@@ -56,8 +58,8 @@ public class Block extends Node {
 
 
     Optional<Block> split(BlockKind kind) {
-        if (this.instructions.getFirst() != this.instructions.getLast()
-                && this.instructions.getLast().getOpCode() != Code.OpCode.jmp
+        if (// this.instructions.getFirst() != this.instructions.getLast()
+                this.instructions.getLast().getOpCode() != Code.OpCode.jmp
         ) {
             Block b = new Block(kind);
             this.setLeft(b);

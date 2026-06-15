@@ -65,7 +65,7 @@ class ParserTest {
         Assertions.assertNotNull(parser.cfg.getRight());
         Assertions.assertSame(Block.BlockKind.NORMAL, parser.cfg.getRight().getKind());
         Assertions.assertSame(Block.BlockKind.NORMAL, generatedElseBlock.getKind());
-        Assertions.assertTrue( generatedElseBlock.getInstructions().isEmpty());
+        Assertions.assertTrue(generatedElseBlock.getInstructions().isEmpty());
         Assertions.assertSame(generatedElseBlock.getLeft(), joinBlock);
 
 
@@ -145,7 +145,7 @@ class ParserTest {
         parser.Parse();
 
         var cfg = parser.cfg;
-        // System.out.println(cfg.toGraphViz());
+        System.out.println(cfg.toGraphViz());
 
         Assertions.assertTrue(cfg.getInstructions().size() > 1);
         Assertions.assertNotNull(cfg.getLeft());
@@ -161,7 +161,6 @@ class ParserTest {
         Assertions.assertEquals(whileCondition.getLeft(), whileBody);
         Assertions.assertEquals(whileCondition.getRight(), joinBlock);
         Assertions.assertEquals(whileBody.getRight(), whileCondition);
-
 
 
         // TESTING LINK ORDER
@@ -181,6 +180,57 @@ class ParserTest {
 
         // TESTING PHI CORRECTNESS
         Assertions.assertEquals(1, whileCondition.getInstructions().stream().filter(i -> i.getOpCode().equals(Code.OpCode.phi)).toList().size());
+    }
+
+
+    @Test
+    void testing_provided_test2() {
+
+        var parser = constructParserForTestCase("""
+                                      var i: int;
+                                              var sum: int;
+                                              var a: int[10];
+                
+                                              fn main() {
+                                                  i = 0;
+                                                  while (i < 10) {
+                                                      read a[i];
+                                                      i = i + 1;
+                                                  }
+                
+                                                  i = 1;
+                                                  sum = 0;
+                                                  while (i < 10) {
+                                                      sum = sum + (a[i] - a [i - 1]);
+                                                      write sum;
+                                                      i = i + 1;
+                                                  }
+                                                  write sum;
+                                              }
+                
+                """);
+        parser.Parse();
+        var entry = parser.cfg;
+        var cfg = entry.getLeft();
+        // CFG Assertions
+        var firstWhile = cfg.getLeft();
+        var firstWhileBody = firstWhile.getLeft();
+        var firstWhileJoin = firstWhile.getRight();
+        var secondWhile = firstWhileJoin.getLeft();
+        var secondWhileBody = secondWhile.getLeft();
+        var secondWhileJoin = secondWhile.getRight();
+
+
+        Assertions.assertSame(cfg.getLeft(), firstWhile);
+        Assertions.assertSame(cfg.getLeft().getLeft(), firstWhileBody);
+        Assertions.assertSame(cfg.getLeft().getRight(), firstWhileJoin);
+
+        System.out.println(cfg.toGraphViz());
+
+
+
+
+
     }
 
 /*    @Test

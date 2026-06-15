@@ -6,6 +6,7 @@ import ir.Block.BlockKind;
 import java.util.*;
 
 import static ir.Block.BlockKind.*;
+import static ir.SymbolTable.FP;
 
 public class Parser {
     public static final int _EOF = 0;
@@ -75,7 +76,7 @@ public class Parser {
     }
 
     void genJump(Block b) {
-        gen(null, Code.OpCode.jmp, b.getFirst());
+        gen(null, Code.OpCode.br, new Constant(b.getFirst().getBlock().getId()));
         curBlock.setRight(b);
         b.getPred().add(curBlock);
     }
@@ -105,14 +106,15 @@ public class Parser {
 
     Node cur(Node x) {
         if (!(x instanceof Obj var)) return x;
-        if (var.level == symbolTable.curLevel) x = curBlock.getValue().get(var.name);
+        if (curBlock.getValue().get(var.name) == null) return x;
+        x = curBlock.getValue().get(var.name);
         return x;
     }
 
     void genAssign(Obj var, Node y) {
         Instruction i = new Instruction(var, Code.OpCode.ass, cur(y), curBlock);
         curBlock.getInstructions().add(i);
-        if (var.level == symbolTable.curLevel) curBlock.getValue().put(var.name, i);
+        curBlock.getValue().put(var.name, i);
     }
 
     private Instruction gen(Node x, Code.OpCode op, Node y) {
@@ -122,7 +124,7 @@ public class Parser {
     }
 
     private void fixup(Instruction i) {
-        i.setY(curBlock.getFirst());
+        i.setY(new Constant(curBlock.getFirst().getBlock().getId()));
         i.getBlock().setRight(curBlock);
         curBlock.getPred().add(i.getBlock());
         curBlock.setDom(i.getBlock());
@@ -206,36 +208,49 @@ public class Parser {
         Expect(1);
         var name = t.val;
         Expect(4);
-        Type();
+        var type = Type();
         Expect(5);
-        System.out.println(name);
-        symbolTable.insert(name, Obj.Kind.Var);
+        symbolTable.insert(name, Obj.Kind.Var, type);
     }
 
     void MainDecl() {
+        var exitBlock = new Block(EXIT);
         Expect(8);
         Expect(9);
         Expect(10); // "("
         Expect(11); // ")"
         Expect(12); // "{"
         symbolTable.openScope();
-        cfg = new Block(NORMAL);
-        curBlock = cfg;
+        this.cfg = new Block(ENTRY);
+        cfg.setLink(new Block(NORMAL));
+        cfg.setLeft(cfg.getLink());
+        curBlock = cfg.getLink();
         while (la.kind == 3) {
             VarDecl();
         }
         StatSeq();
         Expect(13); // "}"
+        curBlock.setLeft(exitBlock);
+        curBlock.setLink(exitBlock);
+        curBlock = curBlock.getLink();
+        gen(null, Code.OpCode.ret, null);
+        cfg.setRight(curBlock);
         symbolTable.closeScope();
     }
 
-    void Type() {
-        Expect(1);
-        while (la.kind == 6) {
+    Struct Type() {
+        Expect(1); // "ident"
+        Struct struct = SymbolTable.intType;
+        while (la.kind == 6) { //"["
             Get();
-            Expect(2);
-            Expect(7);
+            Expect(2); // number
+            var length = Integer.parseInt(t.val);
+            Expect(7); // "]"
+            struct = new Struct(Struct.Kind.Arr, length, struct);
+            System.out.println(struct);
+
         }
+        return struct;
     }
 
     void StatSeq() {
@@ -251,7 +266,7 @@ public class Parser {
             if (!phi.getOpCode().equals(Code.OpCode.phi) || phi.getX() == null) continue;
 
             Node leftOperand = phi.getX();
-
+            System.out.println(leftOperand);
             while (!(leftOperand instanceof Obj)) {
                 leftOperand = ((Instruction) leftOperand).getX();
             }
@@ -361,25 +376,68 @@ public class Parser {
             curBlock.setLink(new Block(NORMAL));
             curBlock = curBlock.getLink();
             fixup(l.getFix());
-        } else if (la.kind == 19) {
+        } else if (la.kind == 19) { // "read"
             Get();
-            Designator(false);
+            var readInstruction = gen(null, Code.OpCode.read, null);
+            var x = Designator(false);
+            gen(x, Code.OpCode.st, readInstruction);
             Expect(5);
-        } else if (la.kind == 20) {
+        } else if (la.kind == 20) { // "write"
             Get();
-            Expression();
+            var x = Expression();
+            gen(null, Code.OpCode.write, x);
             Expect(5);
         } else SynErr(33);
     }
 
     Node Designator(boolean load) {
         Expect(1);
+
         var varName = t.val;
-        var x = symbolTable.find(varName);
-        while (la.kind == 6) {
+        Node index, base, ireg, off;
+        int adr;
+        var obj = symbolTable.find(varName);
+        adr = obj.adr;
+        Struct type = obj.getType();
+        Node x = obj;
+        index = null;
+        ireg = null;
+
+
+        while (la.kind == 6) { // "["
+            if (type.kind() == Struct.Kind.Arr) {
+                type = type.elemType();
+            } else {
+                SemErr("Expected Array. Found " + type.kind());
+            }
             Get();
-            Expression();
-            Expect(7);
+            index = Expression();
+            if (index.getType() != SymbolTable.intType) {
+                SemErr("Expected array length to be int: found " + index.getType().kind());
+            }
+            if (index instanceof Constant) {
+                adr += ((Constant) index).getVal() * 4;
+            } else {
+                index = gen(index, Code.OpCode.times, new Constant(4));
+                ireg = ireg == null ? index : gen(ireg, Code.OpCode.plus, index);
+            }
+
+            Expect(7); // "]"
+        }
+        if (index != null) {
+            base = new Constant(FP);
+            off = new Constant(adr);
+            if (load) {
+                if (ireg == null) {
+                    x = gen(base, Code.OpCode.ld, off);
+                } else {
+                    base = gen(base, Code.OpCode.plus, off);
+                    x = gen(base, Code.OpCode.ld, ireg);
+                }
+            } else {
+                x = gen(base, Code.OpCode.plus, off);
+                if (ireg != null) x = gen(x, Code.OpCode.plus, ireg);
+            }
         }
         return x;
     }
@@ -413,7 +471,7 @@ public class Parser {
         var op = Relop();
         var rhs = Expression();
         label.setOp(op);
-        var compareInstruction = gen(lhs, op, rhs);
+        var compareInstruction = gen(lhs, Code.OpCode.cmp, rhs);
         label.setCond(compareInstruction);
     }
 

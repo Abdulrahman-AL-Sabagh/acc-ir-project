@@ -7,6 +7,7 @@ public class Constant extends Node {
 
     public Constant(int val) {
         this.val = val;
+        this.setType(SymbolTable.intType);
     }
 
     public int getVal() {

@@ -8,15 +8,16 @@ public class Obj extends Node {
     private static int idGenerator;
     final String name;
     final Kind kind;
-    private final Struct type;
+    private Struct type;
     int val;
     int adr;
     int level;
     int nVars;
     int num;
+
     Map<String, Obj> locals;
 
-    public Obj(String name, Kind kind, int level, int num) {
+    public Obj(String name, Kind kind, int level, int num, int adr, Struct type) {
         this.name = name;
         this.kind = kind;
         this.locals = new HashMap<>();
@@ -28,6 +29,8 @@ public class Obj extends Node {
         this.id = idGenerator++;
         this.num = num;
         this.level = level;
+        this.adr = adr;
+        this.type = type;
     }
 
 
@@ -64,5 +67,14 @@ public class Obj extends Node {
     @Override
     public String toString() {
         return String.format("%s", this.name);
+    }
+
+    public Struct getType() {
+        return type;
+    }
+
+    // actually only used to make arrays
+    public void setType(Struct type) {
+        this.type = type;
     }
 }

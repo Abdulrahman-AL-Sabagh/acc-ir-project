@@ -30,6 +30,7 @@ public class Code {
         bne,
         nop,
         jmp,
+        st,
         ble;
 
 

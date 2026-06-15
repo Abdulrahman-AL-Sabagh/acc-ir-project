@@ -3,15 +3,15 @@ package ir;
 import java.util.HashMap;
 
 import java.util.Map;
-import java.util.Optional;
 
 
 public class SymbolTable {
 
-    static final int nLocals = 64;
-    public static Struct intType = new Struct(Struct.Kind.Int, 32, 0, null);
+    public static Struct intType = new Struct(Struct.Kind.Int, 1, null);
     Scope currScope = null;
     int curLevel = -2;
+    static int SP = 0;
+    static int FP = 0;
 
     class Scope {
         private Scope outer;
@@ -56,9 +56,9 @@ public class SymbolTable {
 
 
         openScope();
-        insert("int", Obj.Kind.Type);
+        insert("int", Obj.Kind.Type,null);
         openScope();
-        insert("main", Obj.Kind.Meth);
+        insert("main", Obj.Kind.Meth, null);
 
     }
 
@@ -71,14 +71,17 @@ public class SymbolTable {
      * @param kind
      * @return
      */
-    void insert(String name, Obj.Kind kind) {
+    void insert(String name, Obj.Kind kind, Struct type) {
         if (find(name) != null) {
             throw new IllegalArgumentException("The variable " + name + "  is already defined");
         }
         Obj obj = null;
         switch (kind) {
-            case Type -> obj = new Obj(name, Obj.Kind.Type, curLevel,currScope.nVars);
-            case Var -> obj = new Obj(name, kind, curLevel,currScope.nVars);
+            case Type -> obj = new Obj(name, Obj.Kind.Type, curLevel, currScope.nVars, -1, null);
+            case Var -> {
+                SP -=  4 * type.length();
+                obj = new Obj(name, kind, curLevel, currScope.nVars, SP, type);
+            }
             //  case Meth -> obj = new Obj(name, kind, new Struct(Struct.Kind.None), 0, 0, curLevel, 0, 0, new HashMap<>());
             default -> {
             }
@@ -94,7 +97,7 @@ public class SymbolTable {
         Scope curr = this.currScope;
         while (curr != null) {
             if (curr.locals.containsKey(name)) {
-                return currScope.locals.get(name);
+                return curr.locals.get(name);
             }
             curr = curr.outer;
         }
@@ -102,7 +105,7 @@ public class SymbolTable {
     }
 
     void openScope() {
-        this.currScope = new Scope(currScope, new HashMap<>(), 0);
+        this.currScope = new Scope(currScope, currScope == null ? new HashMap<>() : currScope.getLocals(), 0);
         this.curLevel++;
 
     }
