@@ -113,13 +113,15 @@ public class Parser {
 
     void genAssign(Obj var, Node y) {
         Instruction i = new Instruction(var, Code.OpCode.ass, cur(y), curBlock);
-        curBlock.getInstructions().add(i);
+        curBlock.addInstruction(i);
         curBlock.getValue().put(var.name, i);
     }
 
     private Instruction gen(Node x, Code.OpCode op, Node y) {
         var instr = new Instruction(cur(x), op, cur(y), curBlock);
-        curBlock.getInstructions().add(instr);
+
+        curBlock.addInstruction(instr);
+
         return instr;
     }
 
@@ -261,9 +263,7 @@ public class Parser {
     }
 
     void eliminateRedundantPhis(Block join) {
-        for (int i = 0; i < join.getInstructions().size(); i++) {
-            var phi = join.getInstructions().get(i);
-            if (!phi.getOpCode().equals(Code.OpCode.phi) || phi.getX() == null) continue;
+        for (Instruction phi = join.getFirst().getNext(); phi.getOpCode() == Code.OpCode.phi; phi = phi.getNext()) {
 
             Node leftOperand = phi.getX();
             System.out.println(leftOperand);
@@ -273,12 +273,12 @@ public class Parser {
             var varname = ((Obj) leftOperand).name;
             var whileBody = join.getPred().get(1);
             if (whileBody.getValue().get(varname).equals(phi)) {
-                join.getInstructions().set(i, null);
+                join.getInstructions().remove(phi);
+                if (phi.getPrev() != null) phi.getPrev().setNext(phi.getNext());
+                if (phi.getNext() != null) phi.getNext().setPrev(phi.getPrev());
                 rename(phi, join.getPred().getFirst().getValue().get(varname));
             }
         }
-        var result = join.getInstructions().stream().filter(Objects::nonNull).toList();
-        join.setInstructions(new ArrayList<>(result));
     }
 
     void rename(Instruction phi, Node value) {

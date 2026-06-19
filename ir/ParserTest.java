@@ -33,8 +33,13 @@ class ParserTest {
 
         parser.Parse();
         System.out.println(parser.cfg);
-        Assertions.assertFalse(parser.cfg.getInstructions().isEmpty());
-        Assertions.assertEquals(5, parser.cfg.getInstructions().size());
+        var entryBlock = parser.cfg;
+        var firstBlock = entryBlock.getLeft();
+        System.out.println(entryBlock);
+        System.out.println(firstBlock);
+        System.out.println(parser.curBlock.getInstructions());
+        Assertions.assertFalse(firstBlock.getInstructions().isEmpty());
+        Assertions.assertEquals(5, firstBlock.getInstructions().size());
     }
 
     @Test
@@ -54,16 +59,18 @@ class ParserTest {
                 """);
 
         parser.Parse();
-        var cfg = parser.cfg;
+
+        var entry = parser.cfg;
+        var cfg = entry.getLeft();
         var generatedElseBlock = cfg.getRight();
         var ifBlock = cfg.getLeft();
         var joinBlock = cfg.getRight().getLeft();
         System.out.println(parser.cfg.toGraphViz());
         Assertions.assertNotNull(parser.cfg.getLeft());
-        Assertions.assertEquals(Block.BlockKind.IF, parser.cfg.getLeft().getKind());
+        Assertions.assertEquals(Block.BlockKind.IF, cfg.getLeft().getKind());
         Assertions.assertFalse(parser.cfg.getLeft().getInstructions().isEmpty());
         Assertions.assertNotNull(parser.cfg.getRight());
-        Assertions.assertSame(Block.BlockKind.NORMAL, parser.cfg.getRight().getKind());
+        Assertions.assertSame(Block.BlockKind.NORMAL, cfg.getRight().getKind());
         Assertions.assertSame(Block.BlockKind.NORMAL, generatedElseBlock.getKind());
         Assertions.assertTrue(generatedElseBlock.getInstructions().isEmpty());
         Assertions.assertSame(generatedElseBlock.getLeft(), joinBlock);
@@ -79,7 +86,7 @@ class ParserTest {
         Assertions.assertEquals(cfg.getLink(), ifBlock);
         Assertions.assertEquals(ifBlock.getLink(), generatedElseBlock);
         Assertions.assertEquals(generatedElseBlock.getLink(), joinBlock);
-        Assertions.assertNull(joinBlock.getLink());
+        Assertions.assertNotNull(joinBlock.getLink());
 
         // TESTING PHI Existence
         Assertions.assertTrue(joinBlock.getInstructions().stream().anyMatch(i -> i.getOpCode().equals(Code.OpCode.phi)));
@@ -99,7 +106,7 @@ class ParserTest {
                 """);
         parser.Parse();
 
-        var cfg = parser.cfg;
+        var cfg = parser.cfg.getLeft();
         var ifBlock = cfg.getLeft();
         var elseIfBlock = cfg.getRight();
         var elseIfBodyBlock = elseIfBlock.getLink();
@@ -123,7 +130,7 @@ class ParserTest {
         Assertions.assertEquals(elseIfBodyBlock.getLink(), elseBlock);
         System.out.println(elseBlock.getLink().getKind());
         Assertions.assertEquals(elseBlock.getLink(), joinBlock);
-        Assertions.assertNull(joinBlock.getLink());
+        Assertions.assertSame(joinBlock.getLink().getKind(), Block.BlockKind.EXIT);
 
 
         // TESTING PHI Existence
@@ -144,7 +151,7 @@ class ParserTest {
                 """);
         parser.Parse();
 
-        var cfg = parser.cfg;
+        var cfg = parser.cfg.getLeft();
         System.out.println(cfg.toGraphViz());
 
         Assertions.assertTrue(cfg.getInstructions().size() > 1);
@@ -167,7 +174,7 @@ class ParserTest {
         Assertions.assertEquals(cfg.getLink(), whileCondition);
         Assertions.assertEquals(whileCondition.getLink(), whileBody);
         Assertions.assertEquals(whileBody.getLink(), joinBlock);
-        Assertions.assertNull(joinBlock.getLink());
+        Assertions.assertSame(joinBlock.getLink().getKind(), Block.BlockKind.EXIT);
         parser.invertDomTree();
         System.out.println(cfg.dominatorTreeToGraphViz());
 
@@ -225,12 +232,39 @@ class ParserTest {
         Assertions.assertSame(cfg.getLeft().getLeft(), firstWhileBody);
         Assertions.assertSame(cfg.getLeft().getRight(), firstWhileJoin);
 
+        // System.out.println(entry.toGraphViz());
+        parser.invertDomTree();
+        cfg.visit(cfg, Block.defaultAnchorList);
         System.out.println(cfg.toGraphViz());
 
 
+    }
 
+    @Test
+    void validateCodeWith_GCSEExampleFromTheSlides_Chapter7Slide27() {
+        var parser = constructParserForTestCase("""
+                var a: int;
+                var b: int;
+                var c: int;
+                var d: int;
+                fn main() {
+                    d = a + b;
+                    c = 1 + 2;
+                    d = a + b;
+                    d = a + b - 1;
+                    d = a + b;
+                    d = (a + b) * (a + b - 1);
+                }
+                """
+        );
 
+        parser.Parse();
+        var cfg = parser.cfg.getLeft();
 
+        System.out.println(cfg);
+        cfg.visit(cfg, Block.defaultAnchorList);
+        System.out.println(cfg);
+        Assertions.assertEquals(4, cfg.getInstructions().size());
     }
 
 /*    @Test

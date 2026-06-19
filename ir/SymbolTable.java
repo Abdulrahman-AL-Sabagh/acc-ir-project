@@ -3,6 +3,7 @@ package ir;
 import java.util.HashMap;
 
 import java.util.Map;
+import java.util.Objects;
 
 
 public class SymbolTable {
@@ -105,7 +106,7 @@ public class SymbolTable {
     }
 
     void openScope() {
-        this.currScope = new Scope(currScope, currScope == null ? new HashMap<>() : currScope.getLocals(), 0);
+        this.currScope = new Scope(currScope, currScope == null && curLevel != -1 ? new HashMap<>() : Objects.requireNonNull(currScope).getLocals(), 0);
         this.curLevel++;
 
     }
@@ -119,5 +120,9 @@ public class SymbolTable {
     @Override
     public String toString() {
         return currScope.toString();
+    }
+
+    public int getCurLevel() {
+        return curLevel;
     }
 }

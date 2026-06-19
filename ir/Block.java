@@ -11,6 +11,19 @@ public class Block {
     private Block link;
     private HashMap<String, Node> value = new HashMap<>();
     private final Instruction first;
+    public static HashMap<Code.OpCode, Instruction> defaultAnchorList = new HashMap<>();
+
+    static {
+        defaultAnchorList.put(Code.OpCode.plus, null);
+        defaultAnchorList.put(Code.OpCode.minus, null);
+        defaultAnchorList.put(Code.OpCode.rem, null);
+        defaultAnchorList.put(Code.OpCode.div, null);
+        defaultAnchorList.put(Code.OpCode.times, null);
+        //defaultAnchorList.put(Code.OpCode, null);
+        defaultAnchorList.put(Code.OpCode.plus, null);
+        defaultAnchorList.put(Code.OpCode.plus, null);
+
+    }
 
     enum BlockKind {
         WHILE,
@@ -31,7 +44,7 @@ public class Block {
     private Block left;
     private Block right;
     private List<Block> pred;
-    private ArrayList<Instruction> instructions;
+    private List<Instruction> instructions;
 
 
     private Block(int id, BlockKind kind, Block left, Block right, List<Block> pred, ArrayList<Instruction> instructions) {
@@ -80,6 +93,76 @@ public class Block {
     }
 
 
+    Node propagate(Node node) {
+        if (node != null && node instanceof Instruction i) {
+            if (i.getOpCode() == Code.OpCode.ass || i.eliminated) node = i.getY();
+        }
+        return node;
+    }
+
+    Instruction findInstruction(Node x, Node y, Instruction i) {
+        while (i != null) {
+            if (i.getX().equals(x) && i.getY().equals(y)) return i;
+            i = i.getOpLink();
+        }
+        return null;
+
+    }
+
+
+    HashMap<Code.OpCode, Instruction> CSE(Instruction i, HashMap<Code.OpCode, Instruction> anchor) {
+        while (i != null && i.getOpCode() != Code.OpCode.nop) {
+
+            // TODO: add a list of anchoer operations in code
+            if (defaultAnchorList.containsKey(i.getOpCode())) {
+                i.setX(propagate(i.getX()));
+                i.setY(propagate(i.getY()));
+                Instruction j = findInstruction(i.getX(), i.getY(), anchor.get(i.getOpCode()));
+                if (j != null) {
+                    i.setY(j);
+                    i.eliminated = true;
+                    i.getBlock().getInstructions().remove(i);
+                    //    removeInstruction(i);
+
+                    System.out.println("Removing common subexpression " + i);
+                } else {
+                    i.setOpLink(anchor.get(i.getOpCode()));
+                    anchor.put(i.getOpCode(), i);
+                }
+            } else if (i.getOpCode() == Code.OpCode.ass) {
+                i.setY(propagate(i.getY()));
+                removeInstruction(i);
+                System.out.println("Removing assignment " + i);
+            }
+            i = i.getNext();
+        }
+        return anchor;
+    }
+
+    void visit(Block b, HashMap<Code.OpCode, Instruction> anchor) {
+        CSE(b.getFirst().getNext(), anchor);
+        for (Block subBlock : b.getDomChildren()) {
+            visit(subBlock, anchor);
+        }
+    }
+
+    public void addInstruction(Instruction i) {
+        if (i.getBlock().getInstructions().isEmpty()) {
+            i.setPrev(i.getBlock().getFirst());
+            first.setNext(i);
+        } else {
+            i.setPrev(i.getBlock().getInstructions().getLast());
+            i.getBlock().getInstructions().getLast().setNext(i);
+        }
+        i.getBlock().instructions.add(i);
+    }
+
+    public void removeInstruction(Instruction i) {
+        i.getBlock().getInstructions().remove(i);
+        if (i.getPrev() != null) i.getPrev().setNext(i.getNext());
+        if (i.getNext() != null) i.getNext().setPrev(i.getPrev());
+    }
+
     @Override
     public String toString() {
         var string = new StringBuilder();
@@ -114,7 +197,7 @@ public class Block {
         this.pred = pred;
     }
 
-    public ArrayList<Instruction> getInstructions() {
+    public List<Instruction> getInstructions() {
         return instructions;
     }
 
@@ -143,13 +226,14 @@ public class Block {
     }
 
     // Code constructed in a similar structure to this here
-    // https://graphviz.org/Gallery/directed/psg.html
+// https://graphviz.org/Gallery/directed/psg.html
     public void serializeBlock(Block block, StringBuilder sb) {
         var blockName = generateBlockName(block);
         sb.append(blockName).append(" ");
         sb.append("[ label=<").append("\n").append("<table> \n");
         sb.append("<tr><td><b>").append(blockName).append("</b></td></tr>\n");
         for (Instruction instruction : block.getInstructions()) {
+            System.out.println(instruction);
             sb.append("<tr><td>").append(instruction.toString()).append("</td></tr>").append("\n");
         }
         sb.append("</table> \n").append(" >]").append("\n");

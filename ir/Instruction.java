@@ -10,14 +10,15 @@ public class Instruction extends Node {
     private final Block block;
     private static int idGenerator = 0;
     private Instruction opLink;
-
+    private Instruction prev;
+    private Instruction next;
+    boolean eliminated = false;
     public Instruction(Node x, Code.OpCode opCode, Node y, Block block) {
         this.x = x;
         this.opCode = opCode;
         this.y = y;
         this.block = block;
-        // To make things easier, we will mark the _nop_ with 0
-        // just to maintain the order of the operations in a structured way
+
         this.id = idGenerator++;
         super.setType(SymbolTable.intType);
 
@@ -93,5 +94,21 @@ public class Instruction extends Node {
 
     public void setOpLink(Instruction opLink) {
         this.opLink = opLink;
+    }
+
+    public Instruction getPrev() {
+        return prev;
+    }
+
+    public void setPrev(Instruction prev) {
+        this.prev = prev;
+    }
+
+    public Instruction getNext() {
+        return next;
+    }
+
+    public void setNext(Instruction next) {
+        this.next = next;
     }
 }
