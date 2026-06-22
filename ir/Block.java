@@ -24,6 +24,8 @@ public class Block {
         defaultAnchorList.put(Code.OpCode.plus, null);
         defaultAnchorList.put(Code.OpCode.cmp, null);
         defaultAnchorList.put(Code.OpCode.phi, null);
+        defaultAnchorList.put(Code.OpCode.ld, null);
+        defaultAnchorList.put(Code.OpCode.st, null);
 
     }
 
@@ -70,7 +72,11 @@ public class Block {
      *
      * @return {@link Block}
      */
-
+    public void initValuesForAllLocals(Set<String> locals) {
+        for (String local : locals) {
+            this.value.put(local, null);
+        }
+    }
 
     Optional<Block> split(BlockKind kind) {
         if (// this.instructions.getFirst() != this.instructions.getLast()
@@ -95,31 +101,36 @@ public class Block {
     }
 
 
+    void handlePhiPairs(PhiPair pair) {
+        if (pair.getLhs() instanceof Instruction i && i.eliminated) {
+            pair.setLhs(propagate(i.getY()));
+        }
+        if (pair.getRhs() instanceof Instruction i && i.eliminated) {
+            pair.setRhs(propagate(i.getY()));
+        }
+
+
+    }
+
     Node propagate(Node node) {
 
-        if (node instanceof PhiPair pair) {
-
-
-                if (pair.getLhs().eliminated) {
-                    pair.setLhs(pair.getLhs().getBlock().first);
-                }
-                if (pair.getRhs() != null && pair.getRhs().eliminated) {
-                    pair.setRhs(pair.getRhs().getBlock().first);
-                }
-
-
-
-        }
+        if (node instanceof PhiPair pair) handlePhiPairs(pair);
         if (node instanceof Instruction i) {
 
-            if (i.getOpCode() == Code.OpCode.ass || i.eliminated) node = i.getY();
+            if (i.getOpCode() == Code.OpCode.ass || i.eliminated) {
+                node = i.getY();
+                if (i.getX() instanceof Obj obj) {
+                    node = obj;
+                }
+            }
         }
         return node;
     }
 
-    Instruction findInstruction(Node x, Node y, Instruction i) {
+    Instruction findInstruction(Node x, Node y, Instruction i, Obj arrayObj) {
         while (i != null) {
-            if (i.getX().equals(x) && i.getY().equals(y)) return i;
+            if (i.getOpCode() == Code.OpCode.st && i.obj == arrayObj) return null;
+            if (i.getX() != null && i.getX().equals(x) && i.getY() != null && i.getY().equals(y)) return i;
             i = i.getOpLink();
         }
         return null;
@@ -134,7 +145,7 @@ public class Block {
             if (defaultAnchorList.containsKey(i.getOpCode())) {
                 i.setX(propagate(i.getX()));
                 i.setY(propagate(i.getY()));
-                Instruction j = findInstruction(i.getX(), i.getY(), anchor.get(i.getOpCode()));
+                Instruction j = findInstruction(i.getX(), i.getY(), anchor.get(i.getOpCode()), i.obj);
                 if (j != null) {
                     i.setY(j);
                     i.eliminated = true;
@@ -177,6 +188,7 @@ public class Block {
 
     public void removeInstruction(Instruction i) {
         i.getBlock().getInstructions().remove(i);
+        i.eliminated = true;
         if (i.getPrev() != null) i.getPrev().setNext(i.getNext());
         if (i.getNext() != null) i.getNext().setPrev(i.getPrev());
     }

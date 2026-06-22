@@ -1,9 +1,10 @@
 
 package ir;
 
-import ir.Block.BlockKind;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 
 import static ir.Block.BlockKind.*;
 import static ir.SymbolTable.FP;
@@ -114,14 +115,24 @@ public class Parser {
 
     void genAssign(Obj var, Node y) {
         Instruction i = new Instruction(var, Code.OpCode.ass, cur(y), curBlock);
+
         curBlock.addInstruction(i);
         curBlock.getValue().put(var.name, i);
+        i.obj = var;
     }
 
     private Instruction gen(Node x, Code.OpCode op, Node y) {
-        var instr = new Instruction(cur(x), op, cur(y), curBlock);
-
+        var instr = new Instruction(cur(x), op, op != Code.OpCode.read ? cur(y) : y, curBlock);
         curBlock.addInstruction(instr);
+      /*  if (op == Code.OpCode.read) {
+            System.out.println(x);
+            System.out.println(y);
+            Obj arr =  (Obj) x;
+
+
+            curBlock.getValue().put(arr.name, instr);
+        }
+*/
 
         return instr;
     }
@@ -216,6 +227,8 @@ public class Parser {
         symbolTable.insert(name, Obj.Kind.Var, type);
     }
 
+
+
     void MainDecl() {
         var exitBlock = new Block(EXIT);
         Expect(8);
@@ -224,6 +237,7 @@ public class Parser {
         Expect(11); // ")"
         Expect(12); // "{"
         this.cfg = new Block(ENTRY);
+        cfg.initValuesForAllLocals(symbolTable.currScope.getLocals().keySet());
         cfg.setLink(new Block(NORMAL));
         cfg.setLeft(cfg.getLink());
         cfg.getLink().setDom(cfg);
@@ -235,7 +249,11 @@ public class Parser {
         Expect(13); // "}"
         curBlock.setLeft(exitBlock);
         curBlock.setLink(exitBlock);
+        exitBlock.getPred().add(cfg);
+        exitBlock.getPred().add(curBlock);
         curBlock = curBlock.getLink();
+
+
         gen(null, Code.OpCode.ret, null);
         cfg.setRight(curBlock);
         symbolTable.closeScope();
@@ -275,9 +293,9 @@ public class Parser {
             var varname = ((Obj) leftOperand).name;
             var whileBody = join.getPred().get(1);
             if (!whileBody.getValue().containsKey(varname)) continue;
-            phiPair.setRhs((Instruction) whileBody.getValue().get(varname));
-
-            if (whileBody.getValue().get(varname).equals(phi)) {
+            phiPair.setRhs(whileBody.getValue().get(varname));
+            // If the lhs is null, then probably no assignment happend before the while block;
+            if (whileBody.getValue().get(varname).equals(phi) || phiPair.getLhs() == null) {
 
                 join.removeInstruction(phi);
                 var replaceWith = join.getPred().getFirst().getValue().get(varname);
@@ -293,9 +311,9 @@ public class Parser {
             var filteredList = current.getInstructions().stream().map(i -> {
                 if (i == phi) {
                     return (Instruction) value;
-                } else {
-                    return i;
                 }
+                return i;
+
             }).toList();
             current.setInstructions(new ArrayList<>(filteredList));
             current = current.getLink();
@@ -393,9 +411,14 @@ public class Parser {
             eliminateRedundantPhis(conditionBlock);
         } else if (la.kind == 19) { // "read"
             Get();
-            var readInstruction = gen(null, Code.OpCode.read, null);
+            String varname = la.val;
+            var readInstruction = gen(null, Code.OpCode.read, symbolTable.find(varname));
             var x = Designator(false);
+
+
+            curBlock.getValue().put(varname, readInstruction);
             gen(x, Code.OpCode.st, readInstruction);
+            System.out.println(x);
             Expect(5);
         } else if (la.kind == 20) { // "write"
             Get();
@@ -446,14 +469,23 @@ public class Parser {
                 if (ireg == null) {
                     x = gen(base, Code.OpCode.ld, off);
                 } else {
-                    base = gen(base, Code.OpCode.plus, off);
-                    x = gen(base, Code.OpCode.ld, ireg);
+                    var baseInstr = gen(base, Code.OpCode.plus, off);
+                    baseInstr.obj = obj;
+                    base = baseInstr;
+                    var instr = gen(base, Code.OpCode.ld, ireg);
+                    instr.obj = obj;
+                    x = instr;
                 }
             } else {
-                x = gen(base, Code.OpCode.plus, off);
-                if (ireg != null) x = gen(x, Code.OpCode.plus, ireg);
+                var instr = gen(base, Code.OpCode.plus, off);
+                instr.obj = obj;
+                if (ireg != null) {
+                    instr = gen(instr, Code.OpCode.plus, ireg);
+                }
+                x = instr;
             }
             x.type = type;
+
         }
         return x;
     }

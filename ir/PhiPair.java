@@ -1,32 +1,28 @@
 package ir;
 
 public class PhiPair extends Node {
-    Instruction lhs;
-    Instruction rhs;
+    Node lhs;
+    Node rhs;
 
     public PhiPair(Instruction lhs, Instruction rhs) {
         this.lhs = lhs;
         this.rhs = rhs;
     }
 
-    public Instruction getLhs() {
+    public Node getLhs() {
         return lhs;
     }
 
-    public void setLhs(Instruction lhs) {
+    public void setLhs(Node lhs) {
         this.lhs = lhs;
     }
 
-    public Instruction getRhs() {
+    public Node getRhs() {
         return rhs;
     }
 
-    public void setRhs(Instruction rhs) {
+    public void setRhs(Node rhs) {
         this.rhs = rhs;
     }
 
-    @Override
-    public String toString() {
-        return String.format("[%s, %s]", lhs != null ? lhs.getId() : "?" , rhs != null ? rhs.getId() : "?");
-    }
 }

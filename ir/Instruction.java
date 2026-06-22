@@ -13,6 +13,7 @@ public class Instruction extends Node {
     private Instruction prev;
     private Instruction next;
     boolean eliminated = false;
+    Obj obj;
 
     public Instruction(Node x, Code.OpCode opCode, Node y, Block block) {
         this.x = x;
@@ -56,6 +57,8 @@ public class Instruction extends Node {
         }
         if (n instanceof Instruction var) {
             return String.format("(%d)", var.getId());
+        } else if (n instanceof PhiPair obj) {
+            return String.format("[%s %s] ", stringifyNode(obj.getLhs()), stringifyNode(obj.getRhs()));
         } else return n.toString();
     }
 
