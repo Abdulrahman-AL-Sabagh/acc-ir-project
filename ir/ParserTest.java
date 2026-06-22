@@ -232,9 +232,9 @@ class ParserTest {
         Assertions.assertSame(cfg.getLeft().getLeft(), firstWhileBody);
         Assertions.assertSame(cfg.getLeft().getRight(), firstWhileJoin);
 
+        System.out.println(firstWhile);
         // System.out.println(entry.toGraphViz());
-        parser.invertDomTree();
-        cfg.visit(cfg, Block.defaultAnchorList);
+        parser.Optimize();
         System.out.println(cfg.toGraphViz());
 
 
@@ -259,12 +259,11 @@ class ParserTest {
         );
 
         parser.Parse();
+        parser.Optimize();
         var cfg = parser.cfg.getLeft();
 
-        System.out.println(cfg);
-        cfg.visit(cfg, Block.defaultAnchorList);
-        System.out.println(cfg);
         Assertions.assertEquals(4, cfg.getInstructions().size());
+        System.out.println(cfg);
     }
 
 /*    @Test

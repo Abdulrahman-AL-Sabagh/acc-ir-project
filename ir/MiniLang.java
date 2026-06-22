@@ -9,5 +9,7 @@ public class MiniLang {
         String filename = args[0];
         Parser p = new Parser(new Scanner(filename));
         p.Parse();
+        p.Optimize();
+        System.out.println(p.cfg.toGraphViz());
     }
 }

@@ -1,6 +1,7 @@
 package ir;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedInputStream;
@@ -11,14 +12,20 @@ import static org.junit.jupiter.api.Assertions.*;
 class SymbolTableTest {
     private Parser parser;
 
-/*    @Test
-    void testIfIntAndMainExistByDefault() {
-        parser = new Parser(null);
+    /*    @Test
+        void testIfIntAndMainExistByDefault() {
+            parser = new Parser(null);
 
-        assertTrue(parser.getSymbolTable().currScope.getLocals().containsKey("main"));
+            assertTrue(parser.getSymbolTable().currScope.getLocals().containsKey("main"));
 
 
-    }*/
+        }*/
+
+    @BeforeEach
+    void setUp() {
+        SymbolTable.FP.addr = 0;
+        SymbolTable.SP.addr = 0;
+    }
 
     @Test
     void testIfGlobalVariablesAreAdded() {

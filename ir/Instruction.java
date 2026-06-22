@@ -13,6 +13,7 @@ public class Instruction extends Node {
     private Instruction prev;
     private Instruction next;
     boolean eliminated = false;
+
     public Instruction(Node x, Code.OpCode opCode, Node y, Block block) {
         this.x = x;
         this.opCode = opCode;
@@ -68,7 +69,12 @@ public class Instruction extends Node {
 
     @Override
     public String toString() {
-        return String.format("%s: %s %s %s", this.getId(), stringifyNode(x), opCode.name(), stringifyNode(y));
+        return switch (opCode) {
+            case ret -> this.getId() + ": " + opCode.name();
+            case br, write -> String.format("%s: %s %s", this.getId(), opCode.name(), stringifyNode(y));
+
+            default -> String.format("%s: %s %s %s", this.getId(), stringifyNode(x), opCode.name(), stringifyNode(y));
+        };
     }
 
     public void setX(Node x) {

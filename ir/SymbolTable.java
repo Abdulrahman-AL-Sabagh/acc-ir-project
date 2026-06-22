@@ -11,8 +11,8 @@ public class SymbolTable {
     public static Struct intType = new Struct(Struct.Kind.Int, 1, null);
     Scope currScope = null;
     int curLevel = -2;
-    static int SP = 0;
-    static int FP = 0;
+    static  Register SP = new Register("SP", 0)  ;
+    static Register FP = new Register("FP", 0);
 
     class Scope {
         private Scope outer;
@@ -80,8 +80,8 @@ public class SymbolTable {
         switch (kind) {
             case Type -> obj = new Obj(name, Obj.Kind.Type, curLevel, currScope.nVars, -1, null);
             case Var -> {
-                SP -=  4 * type.length();
-                obj = new Obj(name, kind, curLevel, currScope.nVars, SP, type);
+                SP.addr -=  4 * type.length();
+                obj = new Obj(name, kind, curLevel, currScope.nVars, SP.addr, type);
             }
             //  case Meth -> obj = new Obj(name, kind, new Struct(Struct.Kind.None), 0, 0, curLevel, 0, 0, new HashMap<>());
             default -> {
@@ -106,7 +106,7 @@ public class SymbolTable {
     }
 
     void openScope() {
-        this.currScope = new Scope(currScope, currScope == null && curLevel != -1 ? new HashMap<>() : Objects.requireNonNull(currScope).getLocals(), 0);
+        this.currScope = new Scope(currScope, new HashMap<>(), 0);
         this.curLevel++;
 
     }

@@ -30,7 +30,8 @@ public class Parser {
     public Block curBlock;
 
     void genPhi(Obj var) {
-        Instruction i = gen(var, Code.OpCode.phi, null);
+        var phiPair = new PhiPair((Instruction) curBlock.getPred().getFirst().getValue().get(var.name), null);
+        Instruction i = gen(var, Code.OpCode.phi, phiPair);
         curBlock.getValue().put(var.name, i);
 
     }
@@ -222,10 +223,10 @@ public class Parser {
         Expect(10); // "("
         Expect(11); // ")"
         Expect(12); // "{"
-        symbolTable.openScope();
         this.cfg = new Block(ENTRY);
         cfg.setLink(new Block(NORMAL));
         cfg.setLeft(cfg.getLink());
+        cfg.getLink().setDom(cfg);
         curBlock = cfg.getLink();
         while (la.kind == 3) {
             VarDecl();
@@ -264,6 +265,7 @@ public class Parser {
 
     void eliminateRedundantPhis(Block join) {
         for (Instruction phi = join.getFirst().getNext(); phi.getOpCode() == Code.OpCode.phi; phi = phi.getNext()) {
+            PhiPair phiPair = (PhiPair) phi.getY();
 
             Node leftOperand = phi.getX();
             System.out.println(leftOperand);
@@ -272,11 +274,15 @@ public class Parser {
             }
             var varname = ((Obj) leftOperand).name;
             var whileBody = join.getPred().get(1);
+            if (!whileBody.getValue().containsKey(varname)) continue;
+            phiPair.setRhs((Instruction) whileBody.getValue().get(varname));
+
             if (whileBody.getValue().get(varname).equals(phi)) {
-                join.getInstructions().remove(phi);
-                if (phi.getPrev() != null) phi.getPrev().setNext(phi.getNext());
-                if (phi.getNext() != null) phi.getNext().setPrev(phi.getPrev());
-                rename(phi, join.getPred().getFirst().getValue().get(varname));
+
+                join.removeInstruction(phi);
+                var replaceWith = join.getPred().getFirst().getValue().get(varname);
+
+                rename(phi, replaceWith);
             }
         }
     }
@@ -300,12 +306,16 @@ public class Parser {
         Label l = new Label(null, null, null);
 
         if (la.kind == 1) {
-            Obj x;
+            Node x;
             Node y;
-            x = (Obj) Designator(false);
+            x = Designator(false);
             Expect(14);
             y = Expression();
-            genAssign(x, y);
+            if (x instanceof Obj obj) {
+                genAssign(obj, y);
+            } else {
+                gen(x, Code.OpCode.st, y);
+            }
             Expect(5);
         } else if (la.kind == 15) { // "if"
             Get();
@@ -357,25 +367,30 @@ public class Parser {
             Get();
             Expect(10); // "("
 
-            curBlock = curBlock.split(Block.BlockKind.WHILE).orElse(curBlock);
+            Block conditionBlock = curBlock.split(Block.BlockKind.WHILE).orElse(curBlock);
 
-            Block join = curBlock;
+            curBlock = conditionBlock;
             generatePhiForAllLocals();
             Condition(l);
 
             Expect(11); // ")"
             Expect(12); // "{"
             l.setFix(gen(l.getCond(), Code.OpCode.fjump(l.getOp()), null));
-            curBlock = curBlock.split(BlockKind.WHILE_BODY).orElse(curBlock);
+
+            Block bodyBlock = curBlock.split(WHILE_BODY).orElse(curBlock);
+            curBlock = bodyBlock;
 
             StatSeq();
 
             Expect(13); // "}"
-            genJump(join);
-            eliminateRedundantPhis(join);
-            curBlock.setLink(new Block(NORMAL));
-            curBlock = curBlock.getLink();
+            genJump(conditionBlock);
+
+            Block exit = new Block(NORMAL);
+            curBlock.setLink(exit);
+            curBlock = exit;
+
             fixup(l.getFix());
+            eliminateRedundantPhis(conditionBlock);
         } else if (la.kind == 19) { // "read"
             Get();
             var readInstruction = gen(null, Code.OpCode.read, null);
@@ -425,7 +440,7 @@ public class Parser {
             Expect(7); // "]"
         }
         if (index != null) {
-            base = new Constant(FP);
+            base = FP;
             off = new Constant(adr);
             if (load) {
                 if (ireg == null) {
@@ -438,6 +453,7 @@ public class Parser {
                 x = gen(base, Code.OpCode.plus, off);
                 if (ireg != null) x = gen(x, Code.OpCode.plus, ireg);
             }
+            x.type = type;
         }
         return x;
     }
@@ -574,6 +590,11 @@ public class Parser {
         Expect(0);
 
         scanner.buffer.Close();
+    }
+
+    public void Optimize() {
+        invertDomTree();
+        cfg.visit(cfg, Block.defaultAnchorList);
     }
 
     public SymbolTable getSymbolTable() {

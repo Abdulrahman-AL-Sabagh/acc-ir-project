@@ -22,6 +22,8 @@ public class Block {
         //defaultAnchorList.put(Code.OpCode, null);
         defaultAnchorList.put(Code.OpCode.plus, null);
         defaultAnchorList.put(Code.OpCode.plus, null);
+        defaultAnchorList.put(Code.OpCode.cmp, null);
+        defaultAnchorList.put(Code.OpCode.phi, null);
 
     }
 
@@ -94,7 +96,22 @@ public class Block {
 
 
     Node propagate(Node node) {
-        if (node != null && node instanceof Instruction i) {
+
+        if (node instanceof PhiPair pair) {
+
+
+                if (pair.getLhs().eliminated) {
+                    pair.setLhs(pair.getLhs().getBlock().first);
+                }
+                if (pair.getRhs() != null && pair.getRhs().eliminated) {
+                    pair.setRhs(pair.getRhs().getBlock().first);
+                }
+
+
+
+        }
+        if (node instanceof Instruction i) {
+
             if (i.getOpCode() == Code.OpCode.ass || i.eliminated) node = i.getY();
         }
         return node;
@@ -131,6 +148,7 @@ public class Block {
                 }
             } else if (i.getOpCode() == Code.OpCode.ass) {
                 i.setY(propagate(i.getY()));
+                i.eliminated = true;
                 removeInstruction(i);
                 System.out.println("Removing assignment " + i);
             }
